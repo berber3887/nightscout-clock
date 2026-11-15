@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 // Reminders to replace the infusion set (catheter) and the glucose sensor.
 //
@@ -75,16 +76,86 @@ inline void formatSupplyMessage(char* out, size_t size, const char* name, Supply
     }
 }
 
-// A gentle French text for a child, without accents so every font draws it.
-inline void formatFriendlySupplyMessage(char* out, size_t size, bool sensor, SupplyStatus status) {
-    const char* what = sensor ? "le capteur" : "le catheter";
-    if (status.state == SupplyState::OVERDUE) {
-        snprintf(out, size, "Coucou ! Il est temps de changer %s", what);
-    } else {
-        char duration[16];
-        formatSupplyDuration(duration, sizeof(duration), status.remainingSeconds);
-        snprintf(out, size, "Coucou ! Bientot, on change %s, dans %s", what, duration);
+// Gentle French sentences for a child. {quoi} is replaced by "le cathéter" or "le capteur" and {duree} by
+// the time left. They are written in UTF-8 and converted to the font's Latin-1 before drawing.
+static const char* const FRIENDLY_SOON[] = {
+    "Coucou ! Bientôt, on change {quoi}, dans {duree}",
+    "Stitch est tout excité : on change {quoi} dans {duree} !",
+    "Comme une star de la K-pop, brille ! {quoi} se change dans {duree}",
+    "Toto demande : c'est quand qu'on change {quoi} ? Dans {duree}, Toto !",
+    "Bravo championne ! Dans {duree}, on change {quoi}",
+    "Répétition de K-pop terminée ? Dans {duree}, on change {quoi} !",
+    "Toto dit à la maîtresse : j'ai tout oublié, sauf {quoi} dans {duree} !",
+    "Stitch dit : prépare-toi, {quoi} se change dans {duree} !",
+    "Tu es courageuse ! Dans {duree}, on change {quoi}",
+    "Tout est prêt ? Dans {duree}, mission : changer {quoi} !",
+};
+static const char* const FRIENDLY_OVERDUE[] = {
+    "Coucou ! Il est temps de changer {quoi}",
+    "Stitch dit : c'est l'heure de changer {quoi}, vite !",
+    "Une star de la K-pop n'attend pas : on change {quoi} maintenant !",
+    "Toto dit : maman, {quoi} est fatigué ! Oui Toto, on le change !",
+    "Allez championne, un petit effort : on change {quoi} !",
+    "Mission du jour : changer {quoi}. Tu es la meilleure !",
+    "Toto a trouvé la solution : changer {quoi} tout de suite !",
+    "Stitch sera fier de toi : change {quoi} maintenant !",
+    "Hop hop hop ! C'est l'heure de changer {quoi}",
+    "Ta chanson K-pop préférée peut attendre : change {quoi} d'abord !",
+};
+
+inline unsigned friendlyVariantCount(bool overdue) {
+    return overdue ? sizeof(FRIENDLY_OVERDUE) / sizeof(FRIENDLY_OVERDUE[0])
+                   : sizeof(FRIENDLY_SOON) / sizeof(FRIENDLY_SOON[0]);
+}
+
+// Turns the UTF-8 accented letters of a text into the font's Latin-1 capitals, in place, because the clock
+// writes everything in capitals: "é" becomes the single byte 0xC9. Other characters are kept.
+inline void utf8ToLatin1Capitals(char* text) {
+    char* out = text;
+    for (const unsigned char* in = reinterpret_cast<const unsigned char*>(text); *in; in++) {
+        unsigned char c = *in;
+        if (c == 0xC3 && in[1] >= 0x80 && in[1] <= 0xBF) {
+            c = static_cast<unsigned char>(in[1] + 0x40);
+            in++;
+            if (c >= 0xE0 && c <= 0xFE && c != 0xF7) {
+                c = static_cast<unsigned char>(c - 0x20);
+            }
+        }
+        *out++ = static_cast<char>(c);
     }
+    *out = '\0';
+}
+
+// A gentle sentence for the supply; `variant` picks one of the sentences of its state.
+inline void formatFriendlySupplyMessage(
+    char* out, size_t size, bool sensor, SupplyStatus status, unsigned variant) {
+    const bool overdue = status.state == SupplyState::OVERDUE;
+    const char* tpl = overdue ? FRIENDLY_OVERDUE[variant % friendlyVariantCount(true)]
+                              : FRIENDLY_SOON[variant % friendlyVariantCount(false)];
+    const char* what = sensor ? "le capteur" : "le cathéter";
+    char duration[16];
+    formatSupplyDuration(duration, sizeof(duration), status.remainingSeconds);
+
+    size_t used = 0;
+    auto append = [&](const char* piece, size_t length) {
+        for (size_t i = 0; i < length && used + 1 < size; i++) {
+            out[used++] = piece[i];
+        }
+    };
+    for (const char* p = tpl; *p;) {
+        if (strncmp(p, "{quoi}", 6) == 0) {
+            append(what, strlen(what));
+            p += 6;
+        } else if (strncmp(p, "{duree}", 7) == 0) {
+            append(duration, strlen(duration));
+            p += 7;
+        } else {
+            append(p, 1);
+            p++;
+        }
+    }
+    out[used] = '\0';
+    utf8ToLatin1Capitals(out);
 }
 
 // True when a new round of reminders should start: something is due and either nothing was shown yet

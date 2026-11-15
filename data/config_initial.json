@@ -35,7 +35,8 @@
         "poop", "cat", "dog", "frog", "owl", "fox", "bunny", "narwhal",
         "whale", "octopus", "turtle", "monkey", "pumpkin", "ghost", "bat", "witch",
         "turkey", "mermaid", "dinosaur", "butterfly", "bee", "heart",
-        "queen", "santa", "gift", "star", "candles", "drop", "basketball", "football"
+        "queen", "santa", "gift", "star", "candles", "drop", "basketball", "football",
+        "christmas_tree", "snowman", "basketball_jersey", "snowflake", "hen", "easter_eggs", "strawberry", "skull", "flower", "insulin_pump", "moon", "motorbike"
     ],
     "face_cycle_interval_seconds": 60,
     "face_schedule_enabled": false,

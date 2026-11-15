@@ -218,7 +218,7 @@ float DisplayManager_::getTextWidth(const char* text, byte textCase) {
     for (const char* c = text; *c != '\0'; ++c) {
         char current_char = *c;
         if ((UPPERCASE_LETTERS && textCase == 0) || textCase == 1) {
-            current_char = toupper(current_char);
+            current_char = static_cast<char>(toupper(static_cast<unsigned char>(current_char)));
         }
         if (currentFont.charSizeMap.count(current_char) > 0) {
             width += currentFont.charSizeMap[current_char];
@@ -261,7 +261,7 @@ void DisplayManager_::printText(
         char upperText[length + 1];  // +1 for the null terminator
 
         for (size_t i = 0; i < length; ++i) {
-            upperText[i] = toupper(text[i]);
+            upperText[i] = static_cast<char>(toupper(static_cast<unsigned char>(text[i])));
         }
 
         upperText[length] = '\0';  // Null terminator
@@ -319,7 +319,7 @@ void DisplayManager_::HSVtext(int16_t x, int16_t y, const char* text, bool clear
 
         matrix->setCursor(xpos + x, y);
         if ((UPPERCASE_LETTERS && textCase == 0) || textCase == 1) {
-            matrix->print((char)toupper(text[i]));
+            matrix->print(static_cast<char>(toupper(static_cast<unsigned char>(text[i]))));
         } else {
             matrix->print(&text[i]);
         }

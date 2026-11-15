@@ -61,7 +61,8 @@ private:
     bool overlayActive = false;
     OverlayMode overlayMode = OverlayMode::SCROLLING;
     SupplyItem overlayItem = SupplyItem::CATHETER;
-    char overlayText[128] = {0};
+    char overlayText[192] = {0};
+    unsigned lastFriendlyVariant[2] = {1000, 1000};  // soon, overdue: avoids the same sentence twice
     uint16_t overlayColor = 0;
     unsigned long overlayStartMillis = 0;
     unsigned long overlayLastDrawMillis = 0;

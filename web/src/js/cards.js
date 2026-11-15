@@ -1174,7 +1174,7 @@ function suppliesCard() {
         el("div.grid",
             field("supply_warn_hours", "Start warning", el("div.unit", numberInput("supply_warn_hours"), el("span", "hours before")), "How long before the change is due the message starts."),
             field("supply_repeat_minutes", "Repeat every", segmented("supply_repeat_minutes", SUPPLY_REPEATS, { numeric: true, label: "Reminder repeat" }), "How often the message comes back until you confirm.")),
-        toggleRow("supply_friendly", "Gentle messages for a child", "Shows the reminder as a friendly French sentence, for example \"Coucou ! Bientot, on change le catheter\", instead of the short English text."),
+        toggleRow("supply_friendly", "Gentle messages for a child", "Shows the reminder as a friendly French sentence, for example \"Coucou ! Bientôt, on change le cathéter\" (ten different sentences, picked at random), instead of the short English text."),
         toggleRow("supply_beep", "Beep with the reminder", "Plays a short double beep each time the message appears."),
         el("div.row.spread", nightscout, read))
     load()

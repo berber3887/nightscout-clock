@@ -108,6 +108,18 @@ const FACES = [
     { id: "drop", name: "Drop", about: "Water drop beside the glucose value, colored by glucose range" },
     { id: "basketball", name: "Basketball", about: "Basketball beside the glucose value, colored by glucose range" },
     { id: "football", name: "Football", about: "Football beside the glucose value, colored by glucose range" },
+    { id: "christmas_tree", name: "Christmas tree", about: "Christmas tree beside the glucose value, colored by glucose range" },
+    { id: "snowman", name: "Snowman", about: "Snowman with a hat and a scarf beside the glucose value, colored by glucose range" },
+    { id: "basketball_jersey", name: "Basketball jersey", about: "Basketball jersey beside the glucose value, colored by glucose range" },
+    { id: "snowflake", name: "Snowflake", about: "Snowflake beside the glucose value, colored by glucose range" },
+    { id: "hen", name: "Hen", about: "Hen beside the glucose value, colored by glucose range" },
+    { id: "easter_eggs", name: "Easter eggs", about: "Two Easter eggs beside the glucose value, colored by glucose range" },
+    { id: "strawberry", name: "Strawberry", about: "Strawberry beside the glucose value, colored by glucose range" },
+    { id: "skull", name: "Skull", about: "Skull beside the glucose value, colored by glucose range" },
+    { id: "flower", name: "Flower", about: "Flower beside the glucose value, colored by glucose range" },
+    { id: "insulin_pump", name: "Insulin pump", about: "Insulin pump beside the glucose value, colored by glucose range" },
+    { id: "moon", name: "Crescent moon", about: "Crescent moon beside the glucose value, colored by glucose range" },
+    { id: "motorbike", name: "Motorbike", about: "Motorbike beside the glucose value, colored by glucose range" },
 ]
 
 // Clocks set up on 1.0.0 or earlier stored each face as its number, the face's index in this order.

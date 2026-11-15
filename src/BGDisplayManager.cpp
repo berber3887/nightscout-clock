@@ -86,6 +86,18 @@ void BGDisplayManager_::setup() {
         {"drop", "Drop", new BGDisplayFaceCritter(27)},
         {"basketball", "Basketball", new BGDisplayFaceCritter(28)},
         {"football", "Football", new BGDisplayFaceCritter(29)},
+        {"christmas_tree", "Christmas tree", new BGDisplayFaceCritter(30)},
+        {"snowman", "Snowman", new BGDisplayFaceCritter(31)},
+        {"basketball_jersey", "Basketball jersey", new BGDisplayFaceCritter(32)},
+        {"snowflake", "Snowflake", new BGDisplayFaceCritter(33)},
+        {"hen", "Hen", new BGDisplayFaceCritter(34)},
+        {"easter_eggs", "Easter eggs", new BGDisplayFaceCritter(35)},
+        {"strawberry", "Strawberry", new BGDisplayFaceCritter(36)},
+        {"skull", "Skull", new BGDisplayFaceCritter(37)},
+        {"flower", "Flower", new BGDisplayFaceCritter(38)},
+        {"insulin_pump", "Insulin pump", new BGDisplayFaceCritter(39)},
+        {"moon", "Crescent moon", new BGDisplayFaceCritter(40)},
+        {"motorbike", "Motorbike", new BGDisplayFaceCritter(41)},
     };
 
     configureActiveFaces();

@@ -30,7 +30,7 @@ const unsigned long LONG_PRESS_GRACE_MS = 3000;
 const unsigned long CONFIRM_WINDOW_MS = 60000;
 const char* SUPPLY_BEEP = "supply:d=16,o=6,b=200:e,p,e";
 const char* HINT = " - hold middle = done";
-const char* HINT_FRIENDLY = " - appui long sur le bouton du milieu = fait";
+const char* HINT_FRIENDLY = " - appui long au milieu = fait";
 
 inline int indexOf(SupplyItem item) { return static_cast<int>(item); }
 inline uint8_t bitOf(SupplyItem item) { return 1 << indexOf(item); }
@@ -299,7 +299,16 @@ bool SupplyReminderManager_::canShowOverlay() const {
 void SupplyReminderManager_::startOverlay(SupplyItem item, uint32_t now) {
     const SupplyStatus status = statusOf(item, now);
     if (SettingsManager.settings.supply_friendly) {
-        formatFriendlySupplyMessage(overlayText, sizeof(overlayText), item == SupplyItem::SENSOR, status);
+        // A different sentence each time: pick at random, never the same twice in a row.
+        const bool overdue = status.state == SupplyState::OVERDUE;
+        const unsigned count = friendlyVariantCount(overdue);
+        unsigned variant = random(count);
+        if (count > 1 && variant == lastFriendlyVariant[overdue ? 1 : 0]) {
+            variant = (variant + 1) % count;
+        }
+        lastFriendlyVariant[overdue ? 1 : 0] = variant;
+        formatFriendlySupplyMessage(
+            overlayText, sizeof(overlayText), item == SupplyItem::SENSOR, status, variant);
         strncat(overlayText, HINT_FRIENDLY, sizeof(overlayText) - strlen(overlayText) - 1);
     } else {
         formatSupplyMessage(overlayText, sizeof(overlayText), nameOf(item), status);

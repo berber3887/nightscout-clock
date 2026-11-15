@@ -72,15 +72,46 @@ static void durationsAreShort() {
     assert(strcmp(text, "5h") == 0);
 }
 
-static void friendlyMessagesAreGentleAndAscii() {
-    char text[96];
-    formatFriendlySupplyMessage(text, sizeof(text), false, {SupplyState::DUE_SOON, 11 * 3600 + 20});
-    assert(strcmp(text, "Coucou ! Bientot, on change le catheter, dans 11h") == 0);
-    formatFriendlySupplyMessage(text, sizeof(text), true, {SupplyState::OVERDUE, -(3 * 3600)});
+static void friendlyMessagesUseAccentsAndVary() {
+    char text[160];
+    // "é" and "ô" become the font's Latin-1 capitals É (0xC9) and Ô (0xD4).
+    formatFriendlySupplyMessage(text, sizeof(text), false, {SupplyState::DUE_SOON, 11 * 3600 + 20}, 0);
+    assert(strcmp(text, "Coucou ! Bient\xD4t, on change le cath\xC9ter, dans 11h") == 0);
+    formatFriendlySupplyMessage(text, sizeof(text), true, {SupplyState::OVERDUE, -(3 * 3600)}, 0);
     assert(strcmp(text, "Coucou ! Il est temps de changer le capteur") == 0);
-    for (const char* c = text; *c; c++) {
-        assert(static_cast<unsigned char>(*c) < 128);
+
+    // Every sentence of both states fits, names the supply and has no UTF-8 left over.
+    for (int overdue = 0; overdue < 2; overdue++) {
+        const SupplyStatus status = overdue ? SupplyStatus{SupplyState::OVERDUE, -7200}
+                                            : SupplyStatus{SupplyState::DUE_SOON, 7200};
+        assert(friendlyVariantCount(overdue) >= 8);
+        for (unsigned v = 0; v < friendlyVariantCount(overdue); v++) {
+            formatFriendlySupplyMessage(text, sizeof(text), true, status, v);
+            assert(strstr(text, "le capteur") != nullptr);
+            assert(strstr(text, "{") == nullptr);
+            assert(strlen(text) < 100);
+            for (const char* c = text; *c; c++) {
+                assert(static_cast<unsigned char>(*c) != 0xC3);
+            }
+            if (!overdue) {
+                assert(strstr(text, "2h") != nullptr);
+            }
+        }
     }
+    // The variants differ, and the choice wraps around.
+    char other[160];
+    formatFriendlySupplyMessage(text, sizeof(text), false, {SupplyState::DUE_SOON, 7200}, 1);
+    formatFriendlySupplyMessage(other, sizeof(other), false, {SupplyState::DUE_SOON, 7200}, 2);
+    assert(strcmp(text, other) != 0);
+    formatFriendlySupplyMessage(
+        other, sizeof(other), false, {SupplyState::DUE_SOON, 7200}, 1 + friendlyVariantCount(false));
+    assert(strcmp(text, other) == 0);
+}
+
+static void accentsBecomeLatin1Capitals() {
+    char text[] = "é è ê à ô ç î ï û ù É ! a";
+    utf8ToLatin1Capitals(text);
+    assert(strcmp(text, "\xC9 \xC8 \xCA \xC0 \xD4 \xC7 \xCE \xCF \xDB \xD9 \xC9 ! a") == 0);
 }
 
 static void messagesNameTheSupply() {
@@ -136,7 +167,8 @@ int main() {
     newestStartWins();
     durationsAreShort();
     messagesNameTheSupply();
-    friendlyMessagesAreGentleAndAscii();
+    friendlyMessagesUseAccentsAndVary();
+    accentsBecomeLatin1Capitals();
     roundsStartWhenDueAndRepeat();
     nightscoutTimestampsAreParsed();
     badTimestampsGiveZero();
