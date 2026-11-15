@@ -1423,7 +1423,7 @@ function versionCard() {
         el("p.help", { id: "fw_status" }, ...versionStatusNodes())), { id: "card_version" })
 }
 
-const DEBUG_FIRMWARE_URL = "https://ktomy.github.io/nightscout-clock/debug/"
+const DEBUG_FIRMWARE_URL = "https://berber3887.github.io/nightscout-clock/debug/"
 
 /**
  * Download the clock's in-memory debug log for troubleshooting.
@@ -1457,7 +1457,7 @@ async function downloadDebugLogs() {
 function versionStatusNodes() {
     const v = ui.versions
     if (v.update) {
-        return [el("a", { href: "https://ktomy.github.io/nightscout-clock/", target: "_blank", rel: "noopener noreferrer" }, `Update to ${v.latest}`), " · ",
+        return [el("a", { href: "https://berber3887.github.io/nightscout-clock/", target: "_blank", rel: "noopener noreferrer" }, `Update to ${v.latest}`), " · ",
             el("a", { href: "https://github.com/ktomy/nightscout-clock/tree/main?tab=readme-ov-file#changes", target: "_blank", rel: "noopener noreferrer" }, "Changes")]
     }
     return [v.status || "Checking for updates…"]
