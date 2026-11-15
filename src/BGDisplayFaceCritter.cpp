@@ -241,6 +241,17 @@ const uint8_t spriteBee[13 * 8] PROGMEM = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
+const uint8_t spriteHeart[13 * 8] PROGMEM = {
+    0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+    1, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
 struct CritterColors {
     uint16_t body;  // natural body color (for the NORMAL level)
     uint16_t accent;
@@ -278,6 +289,7 @@ const CritterDef CRITTERS[] = {
     {spriteDinosaur, {0x07E0, 0xFFE0, 0x0000, 0xFFE0, 0xFFE0, 0xFFE0, 0xFFE0}},  // Dinosaur
     {spriteButterfly, {0xFC9F, 0x8410, 0x0000, 0x8410, 0x8410, 0x8410, 0x8410}},  // Butterfly
     {spriteBee, {0xFFE0, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Bee
+    {spriteHeart, {0xF810, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Heart
 };
 
 }  // namespace

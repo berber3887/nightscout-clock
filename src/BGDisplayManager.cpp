@@ -76,6 +76,7 @@ void BGDisplayManager_::setup() {
         {"dinosaur", "Dinosaur", new BGDisplayFaceCritter(18)},
         {"butterfly", "Butterfly", new BGDisplayFaceCritter(19)},
         {"bee", "Bee", new BGDisplayFaceCritter(20)},
+        {"heart", "Heart", new BGDisplayFaceCritter(21)},
     };
 
     configureActiveFaces();
