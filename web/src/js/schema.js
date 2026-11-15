@@ -100,6 +100,12 @@ const FACES = [
     { id: "butterfly", name: "Butterfly", about: "Butterfly beside the glucose value, colored by glucose range" },
     { id: "bee", name: "Bee", about: "Bee beside the glucose value, colored by glucose range" },
     { id: "heart", name: "Heart", about: "Heart beside the glucose value, colored by glucose range" },
+    { id: "queen", name: "Queen", about: "Queen with a crown beside the glucose value, colored by glucose range" },
+    { id: "santa", name: "Santa Claus", about: "Santa Claus beside the glucose value, colored by glucose range" },
+    { id: "gift", name: "Gift", about: "Gift with a ribbon beside the glucose value, colored by glucose range" },
+    { id: "star", name: "Star", about: "Star beside the glucose value, colored by glucose range" },
+    { id: "candles", name: "Candles", about: "Two candles beside the glucose value, colored by glucose range" },
+    { id: "drop", name: "Drop", about: "Water drop beside the glucose value, colored by glucose range" },
 ]
 
 // Clocks set up on 1.0.0 or earlier stored each face as its number, the face's index in this order.

@@ -77,6 +77,12 @@ void BGDisplayManager_::setup() {
         {"butterfly", "Butterfly", new BGDisplayFaceCritter(19)},
         {"bee", "Bee", new BGDisplayFaceCritter(20)},
         {"heart", "Heart", new BGDisplayFaceCritter(21)},
+        {"queen", "Queen", new BGDisplayFaceCritter(22)},
+        {"santa", "Santa Claus", new BGDisplayFaceCritter(23)},
+        {"gift", "Gift", new BGDisplayFaceCritter(24)},
+        {"star", "Star", new BGDisplayFaceCritter(25)},
+        {"candles", "Candles", new BGDisplayFaceCritter(26)},
+        {"drop", "Drop", new BGDisplayFaceCritter(27)},
     };
 
     configureActiveFaces();
