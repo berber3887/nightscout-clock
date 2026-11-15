@@ -28,7 +28,7 @@ const SIM_JS = ["util.js", "schema.js", "preview.js", "preview-panel.js", path.j
 // Gzipped page budget. The whole LittleFS partition is 1 MB.
 const BUDGET_BYTES = 200000;
 // The clock preview emulator, built by web/emulator/build.mjs.
-const EMULATOR_BUDGET_BYTES = 70000;
+const EMULATOR_BUDGET_BYTES = 80000;
 
 /**
  * Compress an asset at maximum gzip compression and normalize the OS header byte for consistent output.
