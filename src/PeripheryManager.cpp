@@ -10,6 +10,7 @@
 #include "DisplayManager.h"
 #include "LowBatteryAlert.h"
 #include "SettingsManager.h"
+#include "SupplyReminderManager.h"
 #include "globals.h"
 
 // Pinouts für das ULANZI-Environment
@@ -87,6 +88,10 @@ void right_button_pressed_long(Button2& /*btn*/) {
 
 void select_button_pressed(Button2& /*btn*/) {
     DEBUG_PRINTLN(F("Select button clicked"));
+    // A click on a catheter or sensor reminder only dismisses it.
+    if (supplyReminder.handleSelectClick()) {
+        return;
+    }
     // A press that snoozes an alarm must not also step the brightness, which could turn the display off.
     if (!bgAlarmManager.snoozeAlarm() && !BLOCK_NAVIGATION) {
         DisplayManager.selectButton();
@@ -95,6 +100,10 @@ void select_button_pressed(Button2& /*btn*/) {
 
 void select_button_pressed_long(Button2& /*btn*/) {
     DEBUG_PRINTLN(F("Select button pressed long"));
+    // Holding the middle button while a reminder shows confirms that the supply was changed.
+    if (supplyReminder.handleSelectLong()) {
+        return;
+    }
     if (!BLOCK_NAVIGATION) {
         DisplayManager.selectButtonLong();
     }

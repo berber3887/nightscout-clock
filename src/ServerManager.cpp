@@ -13,6 +13,7 @@
 #include "DisplayManager.h"
 #include "PeripheryManager.h"
 #include "SettingsManager.h"
+#include "SupplyReminderManager.h"
 #include "globals.h"
 #include "time.h"
 
@@ -541,6 +542,55 @@ void ServerManager_::setupWebServer(IPAddress ip) {
             body += "\"}";
             request->send(200, "application/json", body);
         }));
+
+    // Catheter and sensor change reminders: the dates the clock goes by, for the settings page.
+    ws->on("/api/supplies", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (!enforceAuthentication(request)) {
+            return;
+        }
+        request->send(200, "application/json", supplyReminder.statusJson());
+    });
+
+    // Confirms a supply as changed now, or at the time given in "at" (Unix seconds).
+    ws->addHandler(new AsyncCallbackJsonWebHandler(
+        "/api/supplies/change", [this](AsyncWebServerRequest* request, JsonVariant& json) {
+            if (!enforceAuthentication(request)) {
+                return;
+            }
+            if (!json.is<JsonObject>()) {
+                request->send(400, "application/json",
+                              "{\"status\": \"error\", \"error\": \"json parsing error\"}");
+                return;
+            }
+            JsonObject data = json.as<JsonObject>();
+            const String item = data["item"].as<String>();
+            SupplyItem supply;
+            if (item == "catheter") {
+                supply = SupplyItem::CATHETER;
+            } else if (item == "sensor") {
+                supply = SupplyItem::SENSOR;
+            } else {
+                request->send(400, "application/json",
+                              "{\"status\": \"error\", \"error\": \"item must be catheter or sensor\"}");
+                return;
+            }
+            const uint32_t at = data["at"].as<uint32_t>();
+            if (!supplyReminder.requestChange(supply, at)) {
+                request->send(400, "application/json",
+                              "{\"status\": \"error\", \"error\": \"the clock does not know the time yet, or that time is not allowed\"}");
+                return;
+            }
+            request->send(200, "application/json", "{\"status\": \"ok\"}");
+        }));
+
+    // Asks the clock to read the latest catheter and sensor changes from Nightscout soon.
+    ws->on("/api/supplies/sync", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!enforceAuthentication(request)) {
+            return;
+        }
+        supplyReminder.requestSync();
+        request->send(200, "application/json", "{\"status\": \"ok\"}");
+    });
 
     // Nearby WiFi networks for the settings page. A blocking scan would stall the web server for
     // seconds, so the first call starts a background scan and answers 202, and the page polls until

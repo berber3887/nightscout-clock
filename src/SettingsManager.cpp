@@ -8,6 +8,10 @@
 #include "globals.h"
 
 namespace {
+bool isValidSupplyRepeatMinutes(int minutes) {
+    return minutes == 5 || minutes == 10 || minutes == 15 || minutes == 30 || minutes == 60;
+}
+
 bool isValidFaceCycleInterval(int intervalSeconds) {
     return intervalSeconds == 10 || intervalSeconds == 30 || intervalSeconds == 60 ||
            intervalSeconds == 120 || intervalSeconds == 180 || intervalSeconds == 300;
@@ -239,6 +243,27 @@ bool SettingsManager_::loadSettingsFromFile() {
         settings.alarm_repeat_interval_seconds = 300;
     }
 
+    // Catheter and sensor change reminders
+    settings.supply_catheter_enabled = (*doc)["supply_catheter_enabled"] | false;
+    settings.supply_catheter_days = (*doc)["supply_catheter_days"] | 3;
+    settings.supply_sensor_enabled = (*doc)["supply_sensor_enabled"] | false;
+    settings.supply_sensor_days = (*doc)["supply_sensor_days"] | 7;
+    settings.supply_warn_hours = (*doc)["supply_warn_hours"] | 12;
+    settings.supply_repeat_minutes = (*doc)["supply_repeat_minutes"] | 10;
+    settings.supply_beep = (*doc)["supply_beep"] | false;
+    if (settings.supply_catheter_days < 1 || settings.supply_catheter_days > 30) {
+        settings.supply_catheter_days = 3;
+    }
+    if (settings.supply_sensor_days < 1 || settings.supply_sensor_days > 30) {
+        settings.supply_sensor_days = 7;
+    }
+    if (settings.supply_warn_hours < 1 || settings.supply_warn_hours > 48) {
+        settings.supply_warn_hours = 12;
+    }
+    if (!isValidSupplyRepeatMinutes(settings.supply_repeat_minutes)) {
+        settings.supply_repeat_minutes = 10;
+    }
+
     // Additional WiFi
     settings.additional_wifi_enable = (*doc)["additional_wifi_enable"].as<bool>();
     settings.additional_wifi_type = (*doc)["additional_wifi_type"].as<String>();
@@ -449,6 +474,15 @@ bool SettingsManager_::saveSettingsToFile() {
     (*doc)["alarm_urgent_low_melody"] = settings.alarm_urgent_low_melody;
     (*doc)["alarm_intensive_mode"] = settings.alarm_intensive_mode;
     (*doc)["alarm_repeat_interval_seconds"] = settings.alarm_repeat_interval_seconds;
+
+    // Catheter and sensor change reminders
+    (*doc)["supply_catheter_enabled"] = settings.supply_catheter_enabled;
+    (*doc)["supply_catheter_days"] = settings.supply_catheter_days;
+    (*doc)["supply_sensor_enabled"] = settings.supply_sensor_enabled;
+    (*doc)["supply_sensor_days"] = settings.supply_sensor_days;
+    (*doc)["supply_warn_hours"] = settings.supply_warn_hours;
+    (*doc)["supply_repeat_minutes"] = settings.supply_repeat_minutes;
+    (*doc)["supply_beep"] = settings.supply_beep;
 
     // Additional WiFi
     (*doc)["additional_wifi_enable"] = settings.additional_wifi_enable;

@@ -8,6 +8,7 @@
 #include "PeripheryManager.h"
 #include "ServerManager.h"
 #include "SettingsManager.h"
+#include "SupplyReminderManager.h"
 #include "globals.h"
 #include "improv_consume.h"
 
@@ -54,6 +55,7 @@ void setup() {
     bgSourceManager.setup(SettingsManager.settings.bg_source);
     bgDisplayManager.setup();
     bgAlarmManager.setup();
+    supplyReminder.setup();
     // PeripheryManager.playRTTTLString(sound_boot);
 
     DEBUG_PRINTLN("Setup done");
@@ -105,6 +107,7 @@ void loop() {
         bgSourceManager.tick();
         bgDisplayManager.tick();
         bgAlarmManager.tick();
+        supplyReminder.tick();
 
     } else if (ServerManager.isInAPMode) {
         showJoinAP();

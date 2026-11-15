@@ -910,7 +910,8 @@ function alarmsTab() {
                 return field("alarm_repeat_interval_seconds", "Repeat every", seg, "Time between alarm repeats when not snoozed. Intensive mode overrides this setting.")
             }),
             toggleRow("alarm_intensive_mode", "Intensive mode", "The alarm sounds continuously until snoozed.")),
-            { id: "card_repeat" }))
+            { id: "card_repeat" }),
+        suppliesCard())
 }
 
 /**
@@ -1047,6 +1048,136 @@ function alertWindows(a) {
         box,
         el("p.help", `Leave this empty to alert at any time. With one or more windows the ${a.name} alert only sounds inside them. A window whose end time is earlier than its start time runs past midnight into the next morning, and the days you pick are the days it starts on.`),
         el("p.err", { hidden: true }))
+}
+
+/**
+ * ---------- Catheter and sensor reminders ----------
+ * Build the reminders to change the infusion set and the sensor: a switch and lifetime for each, when it was
+ * last changed (from Nightscout or confirmed here or on the clock), and when and how often to warn.
+ * The dates come from the clock itself, so changes made here take effect at once, without saving.
+ * @returns {HTMLElement}
+ */
+function suppliesCard() {
+    /** @type {SuppliesStatus | null} */
+    let info = null
+    /** @type {string} */
+    let problem = ""
+    const repaints = []
+    const fmtDate = sec => new Date(sec * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+    const fmtSpan = sec => {
+        const s = Math.abs(sec)
+        return s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 48 * 3600 ? `${Math.floor(s / 3600)} h` : `${Math.floor(s / 86400)} days`
+    }
+    /**
+     * Read the dates from the clock and redraw every line that shows them.
+     * @returns {Promise<void>}
+     */
+    const load = async () => {
+        const r = await api.supplies().catch(() => null)
+        if (r && r.ok && r.data && typeof r.data.now === "number") { info = r.data; problem = "" }
+        else if (!r || r.status !== 401) problem = "Could not read the dates from the clock."
+        repaints.forEach(fn => fn())
+    }
+    /**
+     * Run a clock action, report a refusal, and reload the dates.
+     * @param {() => Promise<ApiReply<ActionStatus>>} action - Request to send.
+     * @param {string} done - Message to show when the clock accepts it.
+     * @returns {Promise<void>}
+     */
+    const act = async (action, done) => {
+        try {
+            const r = await action()
+            if (r.status === 401) return
+            if (!r.ok || !r.data || r.data.status !== "ok") return toast((r.data && r.data.error) || "The clock refused that.", "bad", 6000)
+            toast(done)
+        } catch (e) { toast(e.message, "bad") }
+        await load()
+    }
+
+    /**
+     * Build one supply's switch, lifetime, last change and confirm buttons.
+     * @param {{t: string, name: string}} s - Supply to build.
+     * @returns {HTMLElement}
+     */
+    const supplyBlock = s => {
+        const key = k => `supply_${s.t}_${k}`
+        const status = el("p.help", "Reading the dates from the clock…")
+        const when = el("input", { type: "datetime-local", "aria-label": `${s.name} changed on` })
+        const stamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+        when.value = stamp.toISOString().slice(0, 16)
+        const now = el("button.btn.sm", { type: "button", onclick: () => act(() => api.changeSupply(s.t), `${s.name} change recorded.`) }, icon("check"), "Changed now")
+        const set = el("button.btn.sm", { type: "button", onclick: () => {
+            const at = Math.floor(new Date(when.value).getTime() / 1000)
+            if (!when.value || !Number.isFinite(at)) return toast("Choose the date and time of the change first.", "warn")
+            act(() => api.changeSupply(s.t, at), `${s.name} change recorded.`)
+        } }, "Set this time")
+        const fs = el("fieldset",
+            el("div.stack",
+                field(key("days"), `Change the ${s.name.toLowerCase()} every`, el("div.unit", numberInput(key("days")), el("span", "days"))),
+                status,
+                el("div.row", now, when, set)))
+        /**
+         * Say when the supply was last changed and when the next change is due, using the lifetime being edited.
+         * @returns {void}
+         */
+        const paint = () => {
+            const i = info && info[s.t]
+            if (!i) { status.textContent = problem || "Reading the dates from the clock…"; return }
+            if (!i.start) {
+                status.textContent = info.nightscout
+                    ? "No change recorded yet. Press “Changed now”, or log one in Nightscout."
+                    : "No change recorded yet. Press “Changed now” to start the count."
+                return
+            }
+            const days = Number(form.get(key("days")))
+            const source = i.nightscout >= i.local ? "from Nightscout" : "confirmed on the clock or here"
+            let text = `Last change: ${fmtDate(i.start)} (${source}).`
+            if (Number.isInteger(days) && days >= 1) {
+                const left = i.start + days * 86400 - info.now
+                text += left > 0 ? ` Next change due ${fmtDate(i.start + days * 86400)}, in ${fmtSpan(left)}.` : ` Overdue by ${fmtSpan(left)}.`
+            }
+            status.textContent = text
+        }
+        repaints.push(paint)
+        paint()
+        /**
+         * Grey out a switched-off supply's settings.
+         * @returns {void}
+         */
+        const sync = () => {
+            const off = !form.get(key("enabled"))
+            fs.classList.toggle("off", off)
+            $$("input,select,button", fs).forEach(x => { x.disabled = off })
+        }
+        sync()
+        onChangeWhileAttached(fs, k => { if (k === key("enabled")) sync(); if (k === key("days")) paint() })
+        return el("div.stack", toggleRow(key("enabled"), `${s.name} change reminder`, null), fs)
+    }
+
+    const nightscout = el("p.help")
+    const read = el("button.btn.sm", { type: "button", onclick: () => act(api.syncSupplies, "Asked the clock to read Nightscout. This takes a few seconds.").then(() => setTimeout(load, 6000)) }, "Read Nightscout now")
+    const paintNightscout = () => {
+        if (!info) { nightscout.textContent = problem; read.disabled = true; return }
+        read.disabled = !info.nightscout
+        nightscout.textContent = !info.nightscout ? "Nightscout is not the glucose source, so changes can only be confirmed here or on the clock."
+            : info.sync === "ok" ? `Nightscout was read ${info.last_sync ? fmtDate(info.last_sync) : "just now"}.`
+            : info.sync === "failed" ? "The clock could not read Nightscout. It will try again soon."
+            : "The clock has not read Nightscout yet. It does so a minute after starting, then every 30 minutes."
+    }
+    repaints.push(paintNightscout)
+    paintNightscout()
+
+    const body = el("div.stack",
+        el("div.notice.info", el("b", "How it works. "),
+            "From the warning time before a change is due, the clock scrolls a message across the display and repeats it until you confirm the change. To confirm, hold the middle button while the message scrolls; a short press only hides it. You can also press “Changed now” below. The date comes from the latest of: a Nightscout “Site Change”, “Sensor Start” or “Sensor Change” treatment, or a confirmation made here or on the clock."),
+        ...SUPPLIES.map(supplyBlock),
+        el("div.grid",
+            field("supply_warn_hours", "Start warning", el("div.unit", numberInput("supply_warn_hours"), el("span", "hours before")), "How long before the change is due the message starts."),
+            field("supply_repeat_minutes", "Repeat every", segmented("supply_repeat_minutes", SUPPLY_REPEATS, { numeric: true, label: "Reminder repeat" }), "How often the message comes back until you confirm.")),
+        toggleRow("supply_beep", "Beep with the reminder", "Plays a short double beep each time the message appears."),
+        el("div.row.spread", nightscout, read))
+    load()
+    return card("Catheter and sensor reminders", null, body, { id: "card_supplies" })
 }
 
 /**

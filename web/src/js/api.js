@@ -29,6 +29,28 @@
  * @property {string} faceId Currently displayed clock-face id.
  */
 /**
+ * One supply's dates and state, as reported by /api/supplies. Dates are Unix seconds; 0 means unknown.
+ * @typedef {Object} SupplyInfo
+ * @property {boolean} enabled Whether the clock has the reminder switched on (as last saved).
+ * @property {number} lifetime_days Lifetime the clock uses.
+ * @property {number} start Start the reminder goes by: the later of `local` and `nightscout`.
+ * @property {number} local Date confirmed on the clock or this page.
+ * @property {number} nightscout Date of the latest matching treatment read from Nightscout.
+ * @property {number} due End of the lifetime.
+ * @property {number} remaining Seconds until `due`; negative once it has passed.
+ * @property {'off' | 'unknown' | 'ok' | 'soon' | 'overdue'} state Reminder state.
+ */
+/**
+ * Catheter and sensor reminder state returned by /api/supplies.
+ * @typedef {Object} SuppliesStatus
+ * @property {number} now The clock's time in Unix seconds.
+ * @property {boolean} nightscout Whether the clock reads dates from Nightscout.
+ * @property {'never' | 'ok' | 'failed' | 'busy' | 'off'} sync Result of the latest Nightscout read.
+ * @property {number} last_sync Time of the latest successful Nightscout read, or 0.
+ * @property {SupplyInfo} catheter Infusion set.
+ * @property {SupplyInfo} sensor Glucose sensor.
+ */
+/**
  * A WiFi network found by the clock's scan. The same name can appear once per access point.
  * @typedef {Object} WifiNetwork
  * @property {string} ssid Network name.
@@ -277,6 +299,23 @@ const api = (() => {
      */
     const switchFace = face => request("POST", "/api/face", { body: { face } })
     /**
+     * Read the dates the clock goes by for the catheter and sensor change reminders.
+     * @returns {Promise<ApiReply<SuppliesStatus>>}
+     */
+    const supplies = () => request("GET", "/api/supplies")
+    /**
+     * Confirm a supply as changed, now or at a given time. This takes effect at once, without saving settings.
+     * @param {'catheter' | 'sensor'} item - Supply that was changed.
+     * @param {number} [at] - Unix time in seconds of the change; omit for now.
+     * @returns {Promise<ApiReply<ActionStatus>>}
+     */
+    const changeSupply = (item, at) => request("POST", "/api/supplies/change", { body: at ? { item, at } : { item } })
+    /**
+     * Ask the clock to read the latest catheter and sensor changes from Nightscout soon.
+     * @returns {Promise<ApiReply<ActionStatus>>}
+     */
+    const syncSupplies = () => request("POST", "/api/supplies/sync", { body: {} })
+    /**
      * Fetch LibreLinkUp patient choices from the clock's active connection.
      * @returns {Promise<ApiReply<PatientEntry[]>>}
      */
@@ -335,6 +374,6 @@ const api = (() => {
 
     return {
         on: events.on, startStatus, saveSettings,
-        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, patients, scanWifi,
+        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, changeSupply, syncSupplies, patients, scanWifi,
     }
 })()
