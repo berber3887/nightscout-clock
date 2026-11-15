@@ -29,6 +29,8 @@ public:
     void tick();
     // Returns whether an alarm was snoozed by this call.
     bool snoozeAlarm();
+    // True while a glucose alarm is going off and has not been snoozed.
+    bool isAlarmActive() const { return activeAlarm != NULL && !activeAlarm->isSnoozed; }
 };
 
 extern BGAlarmManager_& bgAlarmManager;

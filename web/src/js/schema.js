@@ -176,6 +176,8 @@ const CYCLE_INTERVALS = [[10, "10 s"], [30, "30 s"], [60, "1 min"], [120, "2 min
 const TIME_FORMATS = [["24", "24h"], ["12", "AM/PM"]]
 const SNOOZES = [[5, "5 minutes"], [10, "10 minutes"], [15, "15 minutes"], [30, "30 minutes"], [60, "1 hour"], [120, "2 hours"], [0, "Until next trigger"]]
 const REPEATS = [[60, "1 min"], [120, "2 min"], [300, "5 min"]]
+// How often the catheter and sensor reminder repeats while a change is due.
+const SUPPLY_REPEATS = [[5, "5 min"], [10, "10 min"], [15, "15 min"], [30, "30 min"], [60, "1 hour"]]
 const WIFI_TYPES = [["wpa_psk", "WPA-PSK"], ["wpa_eap", "WPA-EAP"]]
 const BRIGHTNESS_MODES = [["auto_linear", "Auto: balanced", 100], ["auto_dimmed", "Auto: for darker rooms", 101], ["manual", "Manual", null]]
 // Mon..Sun as the firmware numbers them (Sunday = 0).
@@ -185,6 +187,11 @@ const ALARMS = [
     { t: "high", name: "High", compare: "Alert when above", defaultMelody: "high:d=4,o=5,b=125:4e7,p,4e7" },
     { t: "low", name: "Low", compare: "Alert when below", defaultMelody: "low:d=4,o=5,b=200:4e5,4p,4e5,4p,4e5" },
     { t: "urgent_low", name: "Urgent Low", compare: "Alert when below", defaultMelody: "urgent_low:d=4,o=5,b=230:4e6,4p,4e6,4p,4e6,4p,4e6" },
+]
+// Supplies with a change reminder. Keys are supply_<t>_enabled and supply_<t>_days.
+const SUPPLIES = [
+    { t: "catheter", name: "Catheter", defaultDays: 3 },
+    { t: "sensor", name: "Sensor", defaultDays: 7 },
 ]
 const MELODY_PRESETS = [
     ["Double beep", "doublebeep:d=8,o=6,b=180:c,p,c"],
@@ -476,6 +483,25 @@ function validateConfig(c, ctx) {
         }
     }
 
+    // Catheter and sensor change reminders
+    const warnLimit = []
+    for (const s of SUPPLIES) {
+        if (!c[`supply_${s.t}_enabled`]) continue
+        const days = c[`supply_${s.t}_days`]
+        need(`supply_${s.t}_days`, isInt(days) && days >= 1 && days <= 30, "Enter a whole number of days from 1 to 30.")
+        if (isInt(days) && days >= 1) warnLimit.push([s.name, days])
+    }
+    if (warnLimit.length) {
+        const warn = c.supply_warn_hours
+        need("supply_warn_hours", isInt(warn) && warn >= 1 && warn <= 48, "Enter a whole number of hours from 1 to 48.")
+        // A warning that starts before the supply was put on would show at once and never go away.
+        if (isInt(warn)) {
+            const [name, days] = warnLimit.reduce((a, b) => (b[1] < a[1] ? b : a))
+            need("supply_warn_hours", warn < days * 24, `Must be shorter than the ${name.toLowerCase()} lifetime (${days * 24} hours).`)
+        }
+        need("supply_repeat_minutes", inOptions(c.supply_repeat_minutes, SUPPLY_REPEATS), "Please choose how often to repeat the reminder.")
+    }
+
     // Web interface authentication
     if (c.web_auth_enable) need("web_auth_password", RX.webPassword.test(text(c.web_auth_password)), "Password is required and must be 8 to 64 characters long.")
     return e
@@ -507,6 +533,14 @@ function buildSaveJson(c) {
 function normalizeLoaded(c) {
     const out = readFaceIds(clone(c))
     out.face_schedule ??= []
+    // Clocks that have not saved these settings yet use the firmware defaults.
+    out.supply_catheter_enabled = !!out.supply_catheter_enabled
+    out.supply_sensor_enabled = !!out.supply_sensor_enabled
+    out.supply_beep = !!out.supply_beep
+    out.supply_catheter_days ??= 3
+    out.supply_sensor_days ??= 7
+    out.supply_warn_hours ??= 12
+    out.supply_repeat_minutes ??= 10
     /**
      * Convert one integer-string setting to a number in the copied configuration, leaving other values alone.
      * @param {string} k - Key to convert within the copied configuration.
@@ -516,9 +550,11 @@ function normalizeLoaded(c) {
         if (typeof out[k] === "string" && /^-?\d+$/.test(out[k].trim())) out[k] = parseInt(out[k], 10)
     }
     ;[...LIMIT_KEYS, "brightness_level", "face_cycle_interval_seconds", "alarm_repeat_interval_seconds", "custom_nodatatimer",
+        "supply_catheter_days", "supply_sensor_days", "supply_warn_hours", "supply_repeat_minutes",
         ...ALARMS.flatMap(a => [`alarm_${a.t}_value`, `alarm_${a.t}_snooze_interval`])].forEach(num)
     if (!inOptions(out.face_cycle_interval_seconds, CYCLE_INTERVALS)) out.face_cycle_interval_seconds = 60
     if (!inOptions(out.alarm_repeat_interval_seconds, REPEATS)) out.alarm_repeat_interval_seconds = 300
+    if (!inOptions(out.supply_repeat_minutes, SUPPLY_REPEATS)) out.supply_repeat_minutes = 10
     const inactive = Array.isArray(out.inactive_faces) ? out.inactive_faces : []
     out.inactive_faces = [...new Set(inactive.filter(id => FACES.some(f => f.id === id)))]
     const active = activeFaceIds(out.inactive_faces)
@@ -538,7 +574,7 @@ function normalizeLoaded(c) {
  */
 function tabOfKey(key) {
     if (/^(ssid|password|additional_|custom_hostname|custom_mac|web_auth|low_battery_)/.test(key)) return "system"
-    if (/^alarm_/.test(key)) return "alarms"
+    if (/^(alarm_|supply_)/.test(key)) return "alarms"
     if (/^(data_source|ns_|api_secret|nightscout|dexcom|librelinkup|medtrum|units|low_|high_|bg_color)/.test(key)) return "glucose"
     return "display"
 }
@@ -552,7 +588,7 @@ const NETWORK_KEYS = ["ssid", "password", "custom_mac", "dhcp", "ip", "netmask",
 // The list the page offers for each setting that is picked from one.
 const KEY_OPTIONS = {
     data_source: SOURCES, dexcom_server: DEXCOM_SERVERS, librelinkup_region: LLU_REGIONS, units: UNITS, data_old_color: OLD_DATA_COLORS,
-    face_cycle_interval_seconds: CYCLE_INTERVALS, time_format: TIME_FORMATS, alarm_repeat_interval_seconds: REPEATS, additional_wifi_type: WIFI_TYPES,
+    face_cycle_interval_seconds: CYCLE_INTERVALS, time_format: TIME_FORMATS, alarm_repeat_interval_seconds: REPEATS, supply_repeat_minutes: SUPPLY_REPEATS, additional_wifi_type: WIFI_TYPES,
     default_face: FACES.map(f => [f.id]), inactive_faces: FACES.map(f => [f.id]),
     brightness_level: [...Array.from({ length: 10 }, (_, i) => [i + 1]), ...BRIGHTNESS_MODES.filter(m => m[2] != null).map(m => [m[2]])],
     ...Object.fromEntries(ALARMS.map(a => [`alarm_${a.t}_snooze_interval`, SNOOZES])),

@@ -93,6 +93,7 @@ test("isValidRtttl requires a name, defaults and notes", () => {
 test("tabOfKey finds the tab that shows a setting", () => {
     assert.equal(tabOfKey("custom_hostname"), "system")
     assert.equal(tabOfKey("alarm_low_enabled"), "alarms")
+    assert.equal(tabOfKey("supply_warn_hours"), "alarms")
     assert.equal(tabOfKey("low_mgdl"), "glucose")
     assert.equal(tabOfKey("brightness_level"), "display")
 })
@@ -113,4 +114,66 @@ test("a settings file value that fails validation keeps the clock's value", () =
     const merged = mergeSettingsFile({ custom_nodatatimer: 5 }, validConfig({ custom_nodatatimer: 20 }), { network: false, tzNames: TZ_NAMES })
     assert.equal(merged.config.custom_nodatatimer, 20)
     assert.deepEqual(merged.kept, ["custom_nodatatimer"])
+})
+
+test("the catheter and sensor reminders start switched off with sensible defaults", () => {
+    const config = validConfig()
+    assert.equal(config.supply_catheter_enabled, false)
+    assert.equal(config.supply_sensor_enabled, false)
+    assert.equal(config.supply_catheter_days, 3)
+    assert.equal(config.supply_sensor_days, 7)
+    assert.equal(config.supply_warn_hours, 12)
+    assert.equal(config.supply_repeat_minutes, 10)
+    assert.equal(config.supply_beep, false)
+})
+
+test("settings saved before the reminders existed get the defaults", () => {
+    const old = JSON.parse(read("data/config_initial.json"))
+    for (const key of Object.keys(old)) if (key.startsWith("supply_")) delete old[key]
+    const config = normalizeLoaded(old)
+    assert.equal(config.supply_catheter_days, 3)
+    assert.equal(config.supply_sensor_days, 7)
+    assert.equal(config.supply_warn_hours, 12)
+    assert.equal(config.supply_repeat_minutes, 10)
+})
+
+test("reminder numbers typed as text are converted", () => {
+    const config = validConfig({ supply_catheter_days: "3", supply_warn_hours: "12", supply_repeat_minutes: "30" })
+    assert.equal(config.supply_catheter_days, 3)
+    assert.equal(config.supply_warn_hours, 12)
+    assert.equal(config.supply_repeat_minutes, 30)
+})
+
+test("an enabled reminder needs a lifetime of 1 to 30 days", () => {
+    const on = { supply_catheter_enabled: true, supply_sensor_enabled: true }
+    assert.deepEqual(errorsOf(validConfig(on)), {})
+    for (const days of [0, 31, "abc", 2.5]) {
+        const errors = errorsOf({ ...validConfig(on), supply_catheter_days: days })
+        assert.ok(errors.supply_catheter_days, `catheter days ${days}`)
+        assert.ok(!errors.supply_sensor_days)
+    }
+    assert.ok(errorsOf({ ...validConfig(on), supply_sensor_days: 31 }).supply_sensor_days)
+})
+
+test("a reminder that is switched off is not checked", () => {
+    const errors = errorsOf({ ...validConfig(), supply_catheter_days: 0, supply_warn_hours: 0, supply_repeat_minutes: 7 })
+    assert.deepEqual(errors, {})
+})
+
+test("the warning must start after the supply was put on", () => {
+    const base = { supply_catheter_enabled: true, supply_catheter_days: 1 }
+    assert.ok(errorsOf(validConfig({ ...base, supply_warn_hours: 24 })).supply_warn_hours)
+    assert.deepEqual(errorsOf(validConfig({ ...base, supply_warn_hours: 23 })), {})
+    // The shorter lifetime counts, but only for a reminder that is on.
+    assert.deepEqual(errorsOf(validConfig({ supply_sensor_enabled: true, supply_catheter_days: 1, supply_warn_hours: 48 })), {})
+    assert.ok(errorsOf(validConfig({ supply_sensor_enabled: true, supply_warn_hours: 0 })).supply_warn_hours)
+    assert.ok(errorsOf(validConfig({ supply_sensor_enabled: true, supply_warn_hours: 49, supply_sensor_days: 30 })).supply_warn_hours)
+})
+
+test("the reminder repeat must be one of the offered intervals", () => {
+    const on = { supply_sensor_enabled: true }
+    for (const minutes of [5, 10, 15, 30, 60]) assert.deepEqual(errorsOf(validConfig({ ...on, supply_repeat_minutes: minutes })), {})
+    // An unknown interval is put back to the default when loaded.
+    assert.equal(validConfig({ ...on, supply_repeat_minutes: 7 }).supply_repeat_minutes, 10)
+    assert.ok(errorsOf({ ...validConfig(on), supply_repeat_minutes: 7 }).supply_repeat_minutes)
 })

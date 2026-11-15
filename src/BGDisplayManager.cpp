@@ -9,6 +9,7 @@
 #include "DisplayManager.h"
 #include "ServerManager.h"
 #include "SettingsManager.h"
+#include "SupplyReminderManager.h"
 #include "globals.h"
 
 // The getter for the instantiated singleton instance
@@ -252,6 +253,19 @@ void BGDisplayManager_::tick() {
 
     if (brightnessOverlayWasActive) {
         brightnessOverlayWasActive = false;
+        resetFaceCycleTimer();
+        maybeRrefreshScreen(true);
+        return;
+    }
+
+    // A catheter or sensor reminder scrolls across the matrix; the face returns when it is done.
+    if (supplyReminder.isOverlayActive()) {
+        supplyOverlayWasActive = true;
+        return;
+    }
+
+    if (supplyOverlayWasActive) {
+        supplyOverlayWasActive = false;
         resetFaceCycleTimer();
         maybeRrefreshScreen(true);
         return;

@@ -105,6 +105,7 @@ private:
     int appliedScheduleEntry = -1;
     int lastScheduleMinuteOfDay = -1;
     bool brightnessOverlayWasActive = false;
+    bool supplyOverlayWasActive = false;
     // Surprise mode: when enabled and a new reading is shown as exactly 100 or 5.6, the Nyan unicorn
     // runs across once, then the selected face returns. It cannot be selected, so it is not in `faces`.
     BGDisplayFaceNyanUnicorn nyanUnicornFace;

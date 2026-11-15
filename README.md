@@ -120,6 +120,12 @@ Configure high, low, and urgent-low alarms, including sounds, snooze durations, 
 
 <img alt="Alarms tab: high, low and urgent-low alarms and repeat settings" src="docs/images/web-ui-alarms.png" />
 
+The **Catheter and sensor reminders** card at the bottom of this tab reminds you to change your infusion set (default every 3 days) and your glucose sensor (default every 7 days). Each reminder has its own switch and lifetime in days. From a chosen number of hours before the change is due (12 by default), the clock scrolls a message such as `Change CATHETER in 11h` across the display, in yellow, and in red once the change is overdue. The message comes back every 5 to 60 minutes (10 by default) until you confirm the change, and can optionally beep. A glucose alarm always takes priority over the reminder.
+
+To confirm a change, hold the middle button while the message scrolls (or within three seconds after it): the clock shows `CATH OK` or `SENS OK`. A short press on the middle button only hides the message until the next repeat. You can also press **Changed now** (or pick the time of the change and press **Set this time**) on the web page; these take effect at once, without saving the settings.
+
+The start of each supply is the latest of two dates: the newest `Site Change` (catheter) or `Sensor Start` / `Sensor Change` (sensor) treatment in Nightscout, which the clock reads a minute after starting and then every 30 minutes when Nightscout is the data source, and the last confirmation made on the clock or the web page. The confirmed dates are kept in their own file, so they survive saving the settings.
+
 #### WiFi & system
 
 Set up WiFi, an optional secondary network, a custom MAC address or hostname, an optional low battery alert, and web login protection. This tab also shows the firmware version and provides settings backup and restore.
@@ -205,6 +211,10 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
   - ...more... (if you are the author of a CGM data collecting app/service and you want your data to be displayed on the Nightscout Clock, please contact me)
 
 ## Changes
+
+### Next version
+
+- Added catheter and sensor change reminders on the Alarms tab: each has its own lifetime in days (3 and 7 by default); the clock scrolls a message from a chosen number of hours before the change is due (12 by default) and repeats it until the change is confirmed, by holding the middle button or on the web page; the dates come from Nightscout (`Site Change`, `Sensor Start`, `Sensor Change`) and from those confirmations, the later one counting; both reminders are off by default
 
 ### 1.3.1
 

@@ -121,6 +121,15 @@ public:
     DragonFaceSettings face_dragon;
     bool alarm_intensive_mode;
     int alarm_repeat_interval_seconds = 300;
+    // Reminders to change the infusion set (catheter) and the glucose sensor. The reminder starts
+    // supply_warn_hours before the end of the lifetime and repeats every supply_repeat_minutes.
+    bool supply_catheter_enabled = false;
+    int supply_catheter_days = 3;
+    bool supply_sensor_enabled = false;
+    int supply_sensor_days = 7;
+    int supply_warn_hours = 12;
+    int supply_repeat_minutes = 10;
+    bool supply_beep = false;
     bool web_auth_enable;
     String web_auth_password;
 };

@@ -114,7 +114,7 @@ fieldset.off .alarm-body .grid, fieldset.off .alarm-body .windows, fieldset.off 
 .live-value { color: var(--cyan); font-weight: 500; }
 .err { font-size: 12px; line-height: 16px; color: #fca5a5; }
 .field.invalid input, .field.invalid select, .band.invalid > select { border-color: #f87171; }
-input[type=text], input[type=password], input[type=email], input[type=time], select {
+input[type=text], input[type=password], input[type=email], input[type=time], input[type=datetime-local], select {
   width: 100%; min-width: 0; font: 14px/20px var(--sans); color: var(--text); background: var(--surface-sunk);
   border: 1px solid var(--line-2); border-radius: var(--radius); padding: 9px 11px; outline: none;
 }
