@@ -4,7 +4,7 @@
 
 This is an active and developing project, new versions land every few weeks
 
-### Current version: 1.3.1
+### Current version: 1.4.0
 
 ![Build and Release](https://github.com/ktomy/nightscout-clock/actions/workflows/build_release.yml/badge.svg)
 
@@ -212,7 +212,9 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
 
 ## Changes
 
-### Next version
+### 1.4.0
+
+- Added 28 clock faces of characters and objects beside the glucose value, coloured by glucose range: Poop, Cat, Dog, Frog, Owl, Fox, Bunny, Narwhal, Whale, Octopus, Turtle, Monkey, Pumpkin, Ghost, Bat, Witch, Turkey, Mermaid, Dinosaur, Butterfly, Bee, Heart, Queen, Santa Claus, Gift, Star, Candles and Drop; they wait in the "More faces" gallery, and the first twelve sprites are adapted from adamecker/nightscout-clock
 
 - Added catheter and sensor change reminders on the Alarms tab: each has its own lifetime in days (3 and 7 by default); the clock scrolls a message from a chosen number of hours before the change is due (12 by default) and repeats it until the change is confirmed, by holding the middle button or on the web page; the dates come from Nightscout (`Site Change`, `Sensor Start`, `Sensor Change`) and from those confirmations, the later one counting; both reminders are off by default
 
