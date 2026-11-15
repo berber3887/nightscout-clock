@@ -75,6 +75,18 @@ inline void formatSupplyMessage(char* out, size_t size, const char* name, Supply
     }
 }
 
+// A gentle French text for a child, without accents so every font draws it.
+inline void formatFriendlySupplyMessage(char* out, size_t size, bool sensor, SupplyStatus status) {
+    const char* what = sensor ? "le capteur" : "le catheter";
+    if (status.state == SupplyState::OVERDUE) {
+        snprintf(out, size, "Coucou ! Il est temps de changer %s", what);
+    } else {
+        char duration[16];
+        formatSupplyDuration(duration, sizeof(duration), status.remainingSeconds);
+        snprintf(out, size, "Coucou ! Bientot, on change %s, dans %s", what, duration);
+    }
+}
+
 // True when a new round of reminders should start: something is due and either nothing was shown yet
 // since it became due or the repeat interval has passed.
 inline bool supplyRoundDue(

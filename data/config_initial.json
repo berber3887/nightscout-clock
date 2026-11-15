@@ -35,7 +35,7 @@
         "poop", "cat", "dog", "frog", "owl", "fox", "bunny", "narwhal",
         "whale", "octopus", "turtle", "monkey", "pumpkin", "ghost", "bat", "witch",
         "turkey", "mermaid", "dinosaur", "butterfly", "bee", "heart",
-        "queen", "santa", "gift", "star", "candles", "drop"
+        "queen", "santa", "gift", "star", "candles", "drop", "basketball", "football"
     ],
     "face_cycle_interval_seconds": 60,
     "face_schedule_enabled": false,
@@ -68,6 +68,7 @@
     "supply_warn_hours": 12,
     "supply_repeat_minutes": 10,
     "supply_beep": false,
+    "supply_friendly": true,
     "librelinkup_email": "",
     "librelinkup_password": "",
     "librelinkup_region": "EU",

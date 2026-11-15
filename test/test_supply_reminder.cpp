@@ -72,6 +72,17 @@ static void durationsAreShort() {
     assert(strcmp(text, "5h") == 0);
 }
 
+static void friendlyMessagesAreGentleAndAscii() {
+    char text[96];
+    formatFriendlySupplyMessage(text, sizeof(text), false, {SupplyState::DUE_SOON, 11 * 3600 + 20});
+    assert(strcmp(text, "Coucou ! Bientot, on change le catheter, dans 11h") == 0);
+    formatFriendlySupplyMessage(text, sizeof(text), true, {SupplyState::OVERDUE, -(3 * 3600)});
+    assert(strcmp(text, "Coucou ! Il est temps de changer le capteur") == 0);
+    for (const char* c = text; *c; c++) {
+        assert(static_cast<unsigned char>(*c) < 128);
+    }
+}
+
 static void messagesNameTheSupply() {
     char text[48];
     formatSupplyMessage(text, sizeof(text), "CATHETER", {SupplyState::DUE_SOON, 11 * 3600 + 20});
@@ -125,6 +136,7 @@ int main() {
     newestStartWins();
     durationsAreShort();
     messagesNameTheSupply();
+    friendlyMessagesAreGentleAndAscii();
     roundsStartWhenDueAndRepeat();
     nightscoutTimestampsAreParsed();
     badTimestampsGiveZero();

@@ -106,6 +106,8 @@ const FACES = [
     { id: "star", name: "Star", about: "Star beside the glucose value, colored by glucose range" },
     { id: "candles", name: "Candles", about: "Two candles beside the glucose value, colored by glucose range" },
     { id: "drop", name: "Drop", about: "Water drop beside the glucose value, colored by glucose range" },
+    { id: "basketball", name: "Basketball", about: "Basketball beside the glucose value, colored by glucose range" },
+    { id: "football", name: "Football", about: "Football beside the glucose value, colored by glucose range" },
 ]
 
 // Clocks set up on 1.0.0 or earlier stored each face as its number, the face's index in this order.
@@ -537,6 +539,7 @@ function normalizeLoaded(c) {
     out.supply_catheter_enabled = !!out.supply_catheter_enabled
     out.supply_sensor_enabled = !!out.supply_sensor_enabled
     out.supply_beep = !!out.supply_beep
+    out.supply_friendly = out.supply_friendly ?? true
     out.supply_catheter_days ??= 3
     out.supply_sensor_days ??= 7
     out.supply_warn_hours ??= 12

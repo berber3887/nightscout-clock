@@ -318,6 +318,28 @@ const uint8_t spriteDrop[13 * 8] PROGMEM = {
     0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
 };
 
+const uint8_t spriteBasketball[13 * 8] PROGMEM = {
+    0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 4, 1, 1, 4, 1, 1, 4, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 4, 1, 1, 1, 1, 0, 0, 0, 0,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0,
+    1, 1, 1, 1, 4, 1, 1, 1, 1, 0, 0, 0, 0,
+    1, 1, 1, 1, 4, 1, 1, 1, 1, 0, 0, 0, 0,
+    0, 4, 1, 1, 4, 1, 1, 4, 0, 0, 0, 0, 0,
+    0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
+};
+
+const uint8_t spriteFootball[13 * 8] PROGMEM = {
+    0, 0, 1, 1, 4, 1, 1, 0, 0, 0, 0, 0, 0,
+    0, 1, 1, 4, 4, 4, 1, 1, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 4, 1, 1, 1, 1, 0, 0, 0, 0,
+    1, 4, 1, 1, 1, 1, 1, 4, 1, 0, 0, 0, 0,
+    1, 4, 4, 1, 1, 1, 4, 4, 1, 0, 0, 0, 0,
+    1, 1, 4, 1, 4, 1, 4, 1, 1, 0, 0, 0, 0,
+    0, 1, 1, 1, 4, 1, 1, 1, 0, 0, 0, 0, 0,
+    0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
+};
+
 struct CritterColors {
     uint16_t body;  // natural body color (for the NORMAL level)
     uint16_t accent;
@@ -362,6 +384,8 @@ const CritterDef CRITTERS[] = {
     {spriteStar, {0xFFE0, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Star
     {spriteCandles, {0xFFFF, 0xFD20, 0xFFE0, 0x8410, 0x8410, 0x8410, 0x8410}},  // Candles
     {spriteDrop, {0x041F, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Drop
+    {spriteBasketball, {0xFC00, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF}},  // Basketball
+    {spriteFootball, {0xFFFF, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF}},  // Football
 };
 
 }  // namespace
@@ -371,56 +395,73 @@ size_t BGDisplayFaceCritter::count() { return sizeof(CRITTERS) / sizeof(CRITTERS
 BGDisplayFaceCritter::BGDisplayFaceCritter(size_t index) : critterIndex(index < count() ? index : 0) {}
 
 const uint16_t* BGDisplayFaceCritter::getPalette(BG_LEVEL level, bool dataIsOld) const {
-    // Static to avoid a stack allocation on each frame. RAM-based because the body color is computed from
-    // the glucose level.
+    // Static to avoid a stack allocation on each frame. RAM-based because the colors depend on the glucose
+    // range.
     static uint16_t palette[8];
     const CritterColors& cc = CRITTERS[critterIndex].colors;
-    uint16_t body;
-    if (dataIsOld) {
-        body = getDataOldColor();
-    } else {
-        switch (level) {
-            case BG_LEVEL::URGENT_LOW:
-            case BG_LEVEL::URGENT_HIGH:
-                body = 0xF800;  // red
-                break;
-            case BG_LEVEL::WARNING_LOW:
-            case BG_LEVEL::WARNING_HIGH:
-                body = 0xFFE0;  // yellow
-                break;
-            default:
-                body = cc.body;
-                break;
-        }
+    const uint16_t natural[8] = {0x0000, cc.body, cc.accent, cc.eye, cc.c4, cc.c5, cc.c6, cc.c7};
+
+    // Outside the normal range the whole animal takes the range color; the eyes and the black details
+    // keep theirs. Stale data turns it gray.
+    bool recolor = dataIsOld;
+    uint16_t tint = dataIsOld ? getDataOldColor() : 0;
+    if (!dataIsOld && level != BG_LEVEL::NORMAL && level != BG_LEVEL::INVALID) {
+        recolor = true;
+        tint = getBandColor(level);
     }
-    uint16_t extra[] = {cc.c4, cc.c5, cc.c6, cc.c7};
-    palette[0] = 0x0000;  // transparent (unused)
-    palette[1] = body;
-    palette[2] = dataIsOld ? getDataOldColor() : cc.accent;
-    palette[3] = cc.eye;
-    for (int i = 0; i < 4; i++) {
-        palette[4 + i] = dataIsOld ? getDataOldColor() : extra[i];
+    for (int i = 0; i < 8; i++) {
+        palette[i] = (recolor && i != 0 && i != 3 && natural[i] != 0x0000) ? tint : natural[i];
     }
     return palette;
 }
 
-void BGDisplayFaceCritter::drawSprite(const uint8_t* sprite, const uint16_t* palette) const {
+// Eyes close for a moment every few seconds. A sprite without eyes gets a white sparkle that moves across it.
+void BGDisplayFaceCritter::drawSprite(
+    const uint8_t* sprite, const uint16_t* palette, long frame) const {
+    bool hasEyes = false;
+    int pixels = 0;
+    for (int i = 0; i < 13 * 8; i++) {
+        uint8_t index = pgm_read_byte(&sprite[i]);
+        hasEyes = hasEyes || index == 3;
+        pixels += index != 0;
+    }
+    const bool animate = frame >= 0;
+    const bool eyesClosed = animate && hasEyes && frame % 30 == 0;
+    const int sparkleAt = animate && !hasEyes && pixels > 0 ? static_cast<int>((frame / 2) % pixels) : -1;
+
+    int seen = 0;
     for (int16_t row = 0; row < 8; row++) {
         for (int16_t col = 0; col < 13; col++) {
             uint8_t paletteIndex = pgm_read_byte(&sprite[row * 13 + col]);
             if (paletteIndex == 0) {
                 continue;  // transparent
             }
-            DisplayManager.drawPixel(col, row, palette[paletteIndex], false);
+            uint16_t color = palette[paletteIndex];
+            if (eyesClosed && paletteIndex == 3) {
+                color = palette[1];
+            }
+            if (seen++ == sparkleAt) {
+                color = static_cast<uint16_t>(DISPLAY_COLOR::WHITE);
+            }
+            DisplayManager.drawPixel(col, row, color, false);
         }
     }
+}
+
+unsigned long BGDisplayFaceCritter::getAnimationStepMillis() const { return 150; }
+
+void BGDisplayFaceCritter::showAnimationFrame(
+    const std::list<GlucoseReading>& readings, unsigned long frame) const {
+    auto bgLevel = bgDisplayManager.getGlucoseIntervals().getBGLevel(readings.back().sgv);
+    DisplayManager.clearMatrixPart(0, 0, 13, 8);
+    drawSprite(CRITTERS[critterIndex].sprite, getPalette(bgLevel, false), static_cast<long>(frame));
 }
 
 void BGDisplayFaceCritter::showReadings(const std::list<GlucoseReading>& readings, bool dataIsOld) const {
     auto lastReading = readings.back();
     auto bgLevel = bgDisplayManager.getGlucoseIntervals().getBGLevel(lastReading.sgv);
 
-    drawSprite(CRITTERS[critterIndex].sprite, getPalette(bgLevel, dataIsOld));
+    drawSprite(CRITTERS[critterIndex].sprite, getPalette(bgLevel, dataIsOld), -1);
     // The trend arrow sits in the gap between the sprite and the reading.
     showTrendArrow(lastReading, 14, 2, dataIsOld);
     showReading(lastReading, MATRIX_WIDTH - 1, 6, TEXT_ALIGNMENT::RIGHT, FONT_TYPE::MEDIUM, dataIsOld);

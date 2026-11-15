@@ -125,6 +125,7 @@ test("the catheter and sensor reminders start switched off with sensible default
     assert.equal(config.supply_warn_hours, 12)
     assert.equal(config.supply_repeat_minutes, 10)
     assert.equal(config.supply_beep, false)
+    assert.equal(config.supply_friendly, true)
 })
 
 test("settings saved before the reminders existed get the defaults", () => {

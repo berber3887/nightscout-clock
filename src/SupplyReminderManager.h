@@ -61,7 +61,7 @@ private:
     bool overlayActive = false;
     OverlayMode overlayMode = OverlayMode::SCROLLING;
     SupplyItem overlayItem = SupplyItem::CATHETER;
-    char overlayText[64] = {0};
+    char overlayText[128] = {0};
     uint16_t overlayColor = 0;
     unsigned long overlayStartMillis = 0;
     unsigned long overlayLastDrawMillis = 0;

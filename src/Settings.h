@@ -130,6 +130,8 @@ public:
     int supply_warn_hours = 12;
     int supply_repeat_minutes = 10;
     bool supply_beep = false;
+    // Shows the reminders as gentle French sentences for a child instead of the short English text.
+    bool supply_friendly = true;
     bool web_auth_enable;
     String web_auth_password;
 };

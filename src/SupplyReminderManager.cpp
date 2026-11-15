@@ -28,6 +28,7 @@ const unsigned long CONFIRMED_SHOW_MS = 2500;
 const unsigned long LONG_PRESS_GRACE_MS = 3000;
 const char* SUPPLY_BEEP = "supply:d=16,o=6,b=200:e,p,e";
 const char* HINT = " - hold middle = done";
+const char* HINT_FRIENDLY = " - appui long sur le bouton du milieu = fait";
 
 inline int indexOf(SupplyItem item) { return static_cast<int>(item); }
 inline uint8_t bitOf(SupplyItem item) { return 1 << indexOf(item); }
@@ -295,8 +296,13 @@ bool SupplyReminderManager_::canShowOverlay() const {
 
 void SupplyReminderManager_::startOverlay(SupplyItem item, uint32_t now) {
     const SupplyStatus status = statusOf(item, now);
-    formatSupplyMessage(overlayText, sizeof(overlayText), nameOf(item), status);
-    strncat(overlayText, HINT, sizeof(overlayText) - strlen(overlayText) - 1);
+    if (SettingsManager.settings.supply_friendly) {
+        formatFriendlySupplyMessage(overlayText, sizeof(overlayText), item == SupplyItem::SENSOR, status);
+        strncat(overlayText, HINT_FRIENDLY, sizeof(overlayText) - strlen(overlayText) - 1);
+    } else {
+        formatSupplyMessage(overlayText, sizeof(overlayText), nameOf(item), status);
+        strncat(overlayText, HINT, sizeof(overlayText) - strlen(overlayText) - 1);
+    }
     overlayColor = status.state == SupplyState::OVERDUE ? COLOR_RED : COLOR_YELLOW;
     // A big-text face may have left the large font active.
     DisplayManager.setFont(FONT_TYPE::MEDIUM);

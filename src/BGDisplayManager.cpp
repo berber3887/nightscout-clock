@@ -84,6 +84,8 @@ void BGDisplayManager_::setup() {
         {"star", "Star", new BGDisplayFaceCritter(25)},
         {"candles", "Candles", new BGDisplayFaceCritter(26)},
         {"drop", "Drop", new BGDisplayFaceCritter(27)},
+        {"basketball", "Basketball", new BGDisplayFaceCritter(28)},
+        {"football", "Football", new BGDisplayFaceCritter(29)},
     };
 
     configureActiveFaces();
