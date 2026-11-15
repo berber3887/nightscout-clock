@@ -31,7 +31,10 @@
     "face_cycle_enabled": false,
     "inactive_faces": [
         "simple", "graph", "graph_and_bg", "time_only", "simple_dark", "race_car", "dragon", "big_text_dark",
-        "rainbow_clock", "big_text_rainbow", "rainbow_mood", "battery_uptime"
+        "rainbow_clock", "big_text_rainbow", "rainbow_mood", "battery_uptime",
+        "poop", "cat", "dog", "frog", "owl", "fox", "bunny", "narwhal",
+        "whale", "octopus", "turtle", "monkey", "pumpkin", "ghost", "bat", "witch",
+        "turkey", "mermaid", "dinosaur", "butterfly", "bee"
     ],
     "face_cycle_interval_seconds": 60,
     "face_schedule_enabled": false,
