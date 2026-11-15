@@ -1169,7 +1169,7 @@ function suppliesCard() {
 
     const body = el("div.stack",
         el("div.notice.info", el("b", "How it works. "),
-            "From the warning time before a change is due, the clock scrolls a message across the display and repeats it until you confirm the change. To confirm, hold the middle button while the message scrolls; a short press only hides it. You can also press “Changed now” below. The date comes from the latest of: a Nightscout “Site Change”, “Sensor Start” or “Sensor Change” treatment, or a confirmation made here or on the clock."),
+            "From the warning time before a change is due, the clock scrolls a message across the display and repeats it until you confirm the change. To confirm, hold the middle button while the message scrolls or within a minute after it; a short press only hides it. You can also press “Changed now” below. The date comes from the latest of: a Nightscout “Site Change”, “Sensor Start” or “Sensor Change” treatment, or a confirmation made here or on the clock."),
         ...SUPPLIES.map(supplyBlock),
         el("div.grid",
             field("supply_warn_hours", "Start warning", el("div.unit", numberInput("supply_warn_hours"), el("span", "hours before")), "How long before the change is due the message starts."),

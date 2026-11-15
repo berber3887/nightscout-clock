@@ -124,7 +124,7 @@ Configure high, low, and urgent-low alarms, including sounds, snooze durations, 
 
 The **Catheter and sensor reminders** card at the bottom of this tab reminds you to change your infusion set (default every 3 days) and your glucose sensor (default every 7 days). Each reminder has its own switch and lifetime in days. From a chosen number of hours before the change is due (12 by default), the clock scrolls a message such as `Change CATHETER in 11h` across the display, in yellow, and in red once the change is overdue. The message comes back every 5 to 60 minutes (10 by default) until you confirm the change, and can optionally beep. A glucose alarm always takes priority over the reminder.
 
-To confirm a change, hold the middle button while the message scrolls (or within three seconds after it): the clock shows `CATH OK` or `SENS OK`. A short press on the middle button only hides the message until the next repeat. You can also press **Changed now** (or pick the time of the change and press **Set this time**) on the web page; these take effect at once, without saving the settings.
+To confirm a change, hold the middle button while the message scrolls (or within a minute after it ends or is hidden): the clock shows `CATH OK` or `SENS OK`. A short press on the middle button only hides the message until the next repeat. You can also press **Changed now** (or pick the time of the change and press **Set this time**) on the web page; these take effect at once, without saving the settings.
 
 The **Gentle messages for a child** switch, on by default, shows the reminder as a friendly French sentence without accents, such as `Coucou ! Bientot, on change le catheter, dans 11h`, instead of the short English text.
 
@@ -216,6 +216,10 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
   - ...more... (if you are the author of a CGM data collecting app/service and you want your data to be displayed on the Nightscout Clock, please contact me)
 
 ## Changes
+
+### 1.4.2
+
+- Changed the catheter and sensor reminders so a long press on the middle button still confirms the change for a minute after the message ends or is hidden, instead of three seconds
 
 ### 1.4.1
 

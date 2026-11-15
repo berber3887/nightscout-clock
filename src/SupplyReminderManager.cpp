@@ -26,6 +26,8 @@ const unsigned long CONFIRMED_SHOW_MS = 2500;
 // Pause between two reminders of one round, which is also how long a long press that began on the
 // earlier one still counts for it.
 const unsigned long LONG_PRESS_GRACE_MS = 3000;
+// A reminder that has just ended or been dismissed can still be confirmed with a long press for this long.
+const unsigned long CONFIRM_WINDOW_MS = 60000;
 const char* SUPPLY_BEEP = "supply:d=16,o=6,b=200:e,p,e";
 const char* HINT = " - hold middle = done";
 const char* HINT_FRIENDLY = " - appui long sur le bouton du milieu = fait";
@@ -162,7 +164,7 @@ bool SupplyReminderManager_::handleSelectLong() {
         confirmChanged(overlayItem, now);
         return true;
     }
-    if (overlayEndedUnconfirmed && millis() - overlayEndedMillis <= LONG_PRESS_GRACE_MS) {
+    if (overlayEndedUnconfirmed && millis() - overlayEndedMillis <= CONFIRM_WINDOW_MS) {
         confirmChanged(overlayEndedItem, now);
         return true;
     }
