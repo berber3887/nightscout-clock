@@ -7,7 +7,7 @@
 
 #include "enums.h"
 
-#define VERSION "1.4.7"
+#define VERSION "1.4.8"
 
 #ifdef DEBUG
 #define DEBUG_PRINTLN(x)                                                                     \
