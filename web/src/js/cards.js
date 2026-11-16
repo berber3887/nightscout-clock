@@ -609,7 +609,7 @@ function lightReading() {
         if (!out.isConnected) return clearInterval(timer)
         const r = await api.light().catch(() => null)
         if (r && r.ok && r.data && typeof r.data.lux === "number") {
-            out.textContent = `Light measured by the clock now: ${r.data.lux} lux${r.data.display_off ? " (display off)" : ""}. It switches off at or below the level above and comes back a little higher.`
+            out.textContent = `Light measured by the clock now: ${r.data.lux} lux${r.data.display_off ? " (display off)" : ""}. It switches off at or below the level above and comes back a little higher.` + ` [${r.data.raw}${r.data.off_by_dark ? ` / ${r.data.raw_at_off}` : ""}]`
         }
     }
     const timer = setInterval(refresh, 3000)
@@ -1130,18 +1130,27 @@ function suppliesCard() {
         const when = el("input", { type: "datetime-local", "aria-label": `${s.name} changed on` })
         const stamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
         when.value = stamp.toISOString().slice(0, 16)
-        const now = el("button.btn.sm", { type: "button", onclick: () => act(() => api.changeSupply(s.t), `${s.name} change recorded.`) }, icon("check"), "Changed now")
+        // Each confirmation replaces the last change date, so it asks first: a stray tap used to restart the count.
+        const now = el("button.btn.sm", { type: "button", onclick: () => {
+            if (!confirm(t(`Record that the ${s.name.toLowerCase()} was changed just now?`))) return
+            act(() => api.changeSupply(s.t), `${s.name} change recorded.`)
+        } }, icon("check"), "Changed now")
         const set = el("button.btn.sm", { type: "button", onclick: () => {
             const at = Math.floor(new Date(when.value).getTime() / 1000)
             if (!when.value || !Number.isFinite(at)) return toast("Choose the date and time of the change first.", "warn")
-            act(() => api.changeSupply(s.t, at), `${s.name} change recorded.`)
+            if (!confirm(t(`Record that the ${s.name.toLowerCase()} was changed on ${fmtDate(at)}?`))) return
+            act(() => api.changeSupply(s.t, at), `${s.name} change recorded at the time chosen.`)
         } }, "Set this time")
+        const undo = el("button.btn.sm", { type: "button", hidden: true, onclick: () => {
+            if (!confirm(t(`Take back the last ${s.name.toLowerCase()} confirmation? The previous date comes back, and the note the clock sent to Nightscout is removed.`))) return
+            act(() => api.undoSupply(s.t), "Last confirmation taken back.").then(() => setTimeout(load, 4000))
+        } }, "Undo last confirmation")
         const fs = el("fieldset",
             el("div.stack",
                 field(key("days"), `Change the ${s.name.toLowerCase()} every`, el("div.unit", numberInput(key("days")), el("span", "days"))),
                 status,
                 past,
-                el("div.row", now, when, set)))
+                el("div.row", now, when, set, undo)))
         /**
          * Say when the supply was last changed and when the next change is due, using the lifetime being edited.
          * @returns {void}
@@ -1149,6 +1158,7 @@ function suppliesCard() {
         const paint = () => {
             const i = info && info[s.t]
             const list = i && Array.isArray(i.history) ? i.history : []
+            undo.hidden = !(i && i.undo)
             past.textContent = list.length ? `Last changes: ${list.map(fmtDate).join(" · ")}` : ""
             if (!i) { status.textContent = problem || "Reading the dates from the clock…"; return }
             if (!i.start) {
@@ -1159,12 +1169,13 @@ function suppliesCard() {
             }
             const days = Number(form.get(key("days")))
             const source = i.nightscout >= i.local ? "from Nightscout" : "confirmed on the clock or here"
-            let text = `Last change: ${fmtDate(i.start)} (${source}).`
+            // One text node per sentence, so that each can be translated on its own.
+            const parts = [`Last change: ${fmtDate(i.start)} (${source}).`]
             if (Number.isInteger(days) && days >= 1) {
                 const left = i.start + days * 86400 - info.now
-                text += left > 0 ? ` Next change due ${fmtDate(i.start + days * 86400)}, in ${fmtSpan(left)}.` : ` Overdue by ${fmtSpan(left)}.`
+                parts.push(left > 0 ? ` Next change due ${fmtDate(i.start + days * 86400)}, in ${fmtSpan(left)}.` : ` Overdue by ${fmtSpan(left)}.`)
             }
-            status.textContent = text
+            status.replaceChildren(...parts.map(p => document.createTextNode(p)))
         }
         repaints.push(paint)
         paint()

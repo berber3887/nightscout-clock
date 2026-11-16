@@ -316,6 +316,7 @@ const api = (() => {
      * @returns {Promise<ApiReply<ActionStatus>>}
      */
     const syncSupplies = () => request("POST", "/api/supplies/sync", { body: {} })
+    const undoSupply = item => request("POST", "/api/supplies/undo", { body: { item } })
     /**
      * Fetch LibreLinkUp patient choices from the clock's active connection.
      * @returns {Promise<ApiReply<PatientEntry[]>>}
@@ -375,6 +376,6 @@ const api = (() => {
 
     return {
         on: events.on, startStatus, saveSettings,
-        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, light, changeSupply, syncSupplies, patients, scanWifi,
+        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, light, changeSupply, syncSupplies, undoSupply, patients, scanWifi,
     }
 })()

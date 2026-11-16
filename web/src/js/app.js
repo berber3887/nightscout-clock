@@ -391,6 +391,12 @@ async function start() {
     wireName()
     wirePreview(form)
     $("#save").addEventListener("click", save)
+    // The language button shows the other language and switches to it.
+    const langBtn = $("#lang_btn")
+    if (langBtn) {
+        langBtn.textContent = LANG === "fr" ? "EN" : "FR"
+        langBtn.addEventListener("click", () => setLang(LANG === "fr" ? "en" : "fr"))
+    }
     $("#discard").addEventListener("click", () => { form.discard(); renderAll(); preview.setConfig(form.saveJson()) })
     $("#lock_form").addEventListener("submit", unlock)
     $("#lock_btn").addEventListener("click", lock)

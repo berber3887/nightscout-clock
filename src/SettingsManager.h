@@ -20,7 +20,9 @@ public:
     // Re-reads only the brightness settings from the persisted config file,
     // without disturbing anything else in memory.
     bool loadBrightnessFromFile();
-    bool trySaveJsonAsSettings(JsonDocument doc);
+    // Writes the settings given to the configuration file, after checking them. The document is used
+    // in place: copying it under low memory used to truncate it in silence and save a damaged file.
+    bool trySaveJsonAsSettings(JsonVariantConst doc);
     void factoryReset();
     // The repeat intervals the WebUI offers; shared with the save endpoint.
     static bool isValidAlarmRepeatInterval(int intervalSeconds);

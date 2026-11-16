@@ -30,6 +30,7 @@ const unsigned long LONG_PRESS_GRACE_MS = 3000;
 const unsigned long CONFIRM_WINDOW_MS = 60000;
 const char* SUPPLY_BEEP = "supply:d=16,o=6,b=200:e,p,e";
 const char* HINT = " - hold middle = done";
+const char* ENTERED_BY = "nightscout-clock";
 const char* HINT_FRIENDLY = " - appui long au milieu = fait";
 
 inline int indexOf(SupplyItem item) { return static_cast<int>(item); }
@@ -95,6 +96,14 @@ void SupplyReminderManager_::load() {
     nightscoutStart[indexOf(SupplyItem::SENSOR)] = doc["ns_sensor"].as<uint32_t>();
     ignoreUntil[0] = doc["ign_catheter"].as<uint32_t>();
     ignoreUntil[1] = doc["ign_sensor"].as<uint32_t>();
+    for (int i = 0; i < 2; i++) {
+        const char* key = i == 0 ? "catheter" : "sensor";
+        undoLocal[i] = doc["undo"][key]["local"].as<uint32_t>();
+        undoNightscout[i] = doc["undo"][key]["ns"].as<uint32_t>();
+        undoEpoch[i] = doc["undo"][key]["epoch"].as<uint32_t>();
+        postedId[i] = doc["posted"][key]["id"].as<String>();
+        postedEpoch[i] = doc["posted"][key]["epoch"].as<uint32_t>();
+    }
     for (int k = 0; k < HISTORY_SIZE; k++) {
         history[0][k] = doc["h_catheter"][k].as<uint32_t>();
         history[1][k] = doc["h_sensor"][k].as<uint32_t>();
@@ -109,6 +118,14 @@ void SupplyReminderManager_::persist() {
     doc["ns_sensor"] = nightscoutStart[indexOf(SupplyItem::SENSOR)].load();
     doc["ign_catheter"] = ignoreUntil[0].load();
     doc["ign_sensor"] = ignoreUntil[1].load();
+    for (int i = 0; i < 2; i++) {
+        const char* key = i == 0 ? "catheter" : "sensor";
+        doc["undo"][key]["local"] = undoLocal[i].load();
+        doc["undo"][key]["ns"] = undoNightscout[i].load();
+        doc["undo"][key]["epoch"] = undoEpoch[i].load();
+        doc["posted"][key]["id"] = postedId[i];
+        doc["posted"][key]["epoch"] = postedEpoch[i];
+    }
     JsonArray historyCatheter = doc["h_catheter"].to<JsonArray>();
     JsonArray historySensor = doc["h_sensor"].to<JsonArray>();
     for (int k = 0; k < HISTORY_SIZE; k++) {
@@ -140,6 +157,7 @@ bool SupplyReminderManager_::requestChange(SupplyItem item, uint32_t epoch) {
     if (epoch > now + 300 || epoch + 40UL * 86400UL < now) {
         return false;
     }
+    rememberUndo(item, epoch);
     localStart[indexOf(item)] = epoch;
     // A date typed by hand that is older than what Nightscout knows is a correction (for example after
     // test confirmations): Nightscout's later notes up to now are set aside, and the date is sent.
@@ -153,6 +171,7 @@ bool SupplyReminderManager_::requestChange(SupplyItem item, uint32_t epoch) {
 }
 
 void SupplyReminderManager_::confirmChanged(SupplyItem item, uint32_t now) {
+    rememberUndo(item, now);
     localStart[indexOf(item)] = now;
     persistRequested = true;
     roundQueue &= ~bitOf(item);
@@ -160,6 +179,49 @@ void SupplyReminderManager_::confirmChanged(SupplyItem item, uint32_t now) {
     overlayEndedUnconfirmed = false;
     DEBUG_PRINTF("Supplies: %s confirmed as changed\n", nameOf(item));
     startConfirmedOverlay(item);
+}
+
+void SupplyReminderManager_::rememberUndo(SupplyItem item, uint32_t newEpoch) {
+    const int i = indexOf(item);
+    undoLocal[i] = localStart[i].load();
+    undoNightscout[i] = nightscoutStart[i].load();
+    undoEpoch[i] = newEpoch;
+}
+
+bool SupplyReminderManager_::requestUndo(SupplyItem item) {
+    const int i = indexOf(item);
+    if (undoEpoch[i].load() == 0 || localStart[i].load() != undoEpoch[i].load()) {
+        return false;
+    }
+    undoRequested[i] = true;
+    return true;
+}
+
+// Main loop: puts the dates back as they were before the last confirmation, and removes the note the
+// clock sent to Nightscout for it.
+void SupplyReminderManager_::applyUndo(SupplyItem item) {
+    const int i = indexOf(item);
+    const uint32_t undone = undoEpoch[i].load();
+    if (undone == 0 || localStart[i].load() != undone) {
+        return;
+    }
+    localStart[i] = undoLocal[i].load();
+    nightscoutStart[i] = undoNightscout[i].load();
+    ignoreUntil[i] = 0;
+    undoEpoch[i] = 0;
+    shownMask &= ~bitOf(item);
+    if (postedEpoch[i] == undone && postedId[i].length() > 0) {
+        if (deleteTreatment(postedId[i])) {
+            postedId[i] = "";
+            postedEpoch[i] = 0;
+        } else {
+            // Could not remove it now: set it aside so that it does not come back, and remove it later.
+            ignoreUntil[i] = ServerManager.getUtcEpoch();
+        }
+        syncRequested = true;
+    }
+    persistRequested = true;
+    DEBUG_PRINTF("Supplies: %s confirmation taken back\n", nameOf(item));
 }
 
 bool SupplyReminderManager_::handleSelectClick() {
@@ -209,18 +271,10 @@ bool SupplyReminderManager_::shouldSync() const {
     return millis() - lastSyncMillis >= SYNC_INTERVAL_MS;
 }
 
-// Asks Nightscout for the newest treatments of one kind, newest first. Returns false when the request
-// failed; an empty list is a success with a count of zero.
-bool SupplyReminderManager_::fetchTreatments(const char* eventType, uint32_t* out, int max, int& count) {
-    count = 0;
-    String base = SettingsManager.settings.nightscout_url;
-    if (!base.endsWith("/")) {
-        base += "/";
-    }
-    String type = eventType;
-    type.replace(" ", "%20");
-    const String url = base + "api/v1/treatments?find[eventType]=" + type + "&count=" + String(max);
-
+// One request to Nightscout with the clock's secret. `reply` receives the answer when wanted.
+bool SupplyReminderManager_::nightscoutRequest(
+    const char* method, const String& url, const String& body, int& code, String* reply) {
+    code = 0;
     std::unique_ptr<WiFiClientSecure> secure;
     HTTPClient http;
     bool began;
@@ -238,23 +292,49 @@ bool SupplyReminderManager_::fetchTreatments(const char* eventType, uint32_t* ou
     http.setConnectTimeout(5000);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     http.addHeader("Accept", "application/json");
+    if (body.length() > 0) {
+        http.addHeader("Content-Type", "application/json");
+    }
     const String apiKey = SettingsManager.settings.nightscout_api_key;
     if (apiKey != "") {
         http.addHeader("api-secret", sha1(apiKey));
     }
+    code = http.sendRequest(method, body);
+    if (reply != nullptr && code > 0) {
+        *reply = http.getString();
+    }
+    http.end();
+    return code > 0;
+}
 
-    const int code = http.GET();
-    if (code != HTTP_CODE_OK) {
+static String nightscoutBase() {
+    String base = SettingsManager.settings.nightscout_url;
+    if (!base.endsWith("/")) {
+        base += "/";
+    }
+    return base;
+}
+
+// Asks Nightscout for the newest treatments of one kind, newest first. Returns false when the request
+// failed; an empty list is a success with a count of zero.
+bool SupplyReminderManager_::fetchTreatments(const char* eventType, TreatmentRef* out, int max, int& count) {
+    count = 0;
+    String type = eventType;
+    type.replace(" ", "%20");
+    const String url = nightscoutBase() + "api/v1/treatments?find[eventType]=" + type + "&count=" + String(max);
+
+    int code = 0;
+    String body;
+    if (!nightscoutRequest("GET", url, "", code, &body) || code != HTTP_CODE_OK) {
         DEBUG_PRINTF("Supplies: Nightscout answered %d for %s\n", code, eventType);
-        http.end();
         return false;
     }
-    const String body = http.getString();
-    http.end();
 
     JsonDocument filter;
     filter[0]["created_at"] = true;
     filter[0]["mills"] = true;
+    filter[0]["_id"] = true;
+    filter[0]["enteredBy"] = true;
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, body, DeserializationOption::Filter(filter));
     if (error || !doc.is<JsonArray>()) {
@@ -273,56 +353,55 @@ bool SupplyReminderManager_::fetchTreatments(const char* eventType, uint32_t* ou
             epoch = static_cast<uint32_t>(treatment["mills"].as<unsigned long long>() / 1000ULL);
         }
         if (epoch != 0) {
-            out[count++] = epoch;
+            out[count].epoch = epoch;
+            out[count].id = treatment["_id"].as<String>();
+            out[count].fromClock = treatment["enteredBy"].as<String>() == ENTERED_BY;
+            count++;
         }
     }
     return true;
 }
 
-// Logs a confirmed change in Nightscout. Returns true when Nightscout accepted it.
-bool SupplyReminderManager_::postTreatment(SupplyItem item, uint32_t epoch) {
-    String base = SettingsManager.settings.nightscout_url;
-    if (!base.endsWith("/")) {
-        base += "/";
-    }
-    const String url = base + "api/v1/treatments";
-
+// Logs a confirmed change in Nightscout. Returns true when Nightscout accepted it; `idOut` then holds
+// the id Nightscout gave the note, when it reported one.
+bool SupplyReminderManager_::postTreatment(SupplyItem item, uint32_t epoch, String& idOut) {
+    idOut = "";
     char stamp[32];
     formatNightscoutTimestamp(stamp, sizeof(stamp), epoch);
     JsonDocument doc;
     doc["eventType"] = item == SupplyItem::CATHETER ? "Site Change" : "Sensor Change";
     doc["created_at"] = stamp;
-    doc["enteredBy"] = "nightscout-clock";
+    doc["enteredBy"] = ENTERED_BY;
     doc["notes"] = "Confirmed on the Nightscout clock";
     String body;
     serializeJson(doc, body);
 
-    std::unique_ptr<WiFiClientSecure> secure;
-    HTTPClient http;
-    bool began;
-    if (url.startsWith("https")) {
-        secure.reset(new WiFiClientSecure());
-        secure->setInsecure();
-        began = http.begin(*secure, url);
-    } else {
-        began = http.begin(url);
-    }
-    if (!began) {
+    int code = 0;
+    String reply;
+    const bool sent = nightscoutRequest("POST", nightscoutBase() + "api/v1/treatments", body, code, &reply);
+    DEBUG_PRINTF("Supplies: Nightscout answered %d to the %s change\n", code, nameOf(item));
+    if (!sent || (code != HTTP_CODE_OK && code != HTTP_CODE_CREATED)) {
         return false;
     }
-    http.setTimeout(8000);
-    http.setConnectTimeout(5000);
-    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Accept", "application/json");
-    const String apiKey = SettingsManager.settings.nightscout_api_key;
-    if (apiKey != "") {
-        http.addHeader("api-secret", sha1(apiKey));
+    JsonDocument filter;
+    filter[0]["_id"] = true;
+    JsonDocument answer;
+    if (!deserializeJson(answer, reply, DeserializationOption::Filter(filter)) && answer.is<JsonArray>() &&
+        answer.size() > 0) {
+        idOut = answer[0]["_id"].as<String>();
     }
-    const int code = http.POST(body);
-    http.end();
-    DEBUG_PRINTF("Supplies: Nightscout answered %d to the %s change\n", code, nameOf(item));
-    return code == HTTP_CODE_OK || code == HTTP_CODE_CREATED;
+    return true;
+}
+
+// Removes a note the clock sent. Returns true when Nightscout accepted the removal.
+bool SupplyReminderManager_::deleteTreatment(const String& id) {
+    if (id.length() == 0) {
+        return false;
+    }
+    int code = 0;
+    const bool sent = nightscoutRequest("DELETE", nightscoutBase() + "api/v1/treatments/" + id, "", code, nullptr);
+    DEBUG_PRINTF("Supplies: Nightscout answered %d to removing note %s\n", code, id.c_str());
+    return sent && (code == HTTP_CODE_OK || code == HTTP_CODE_NO_CONTENT);
 }
 
 // A change confirmed here is newer than anything Nightscout knows: send it. Also catches up after a
@@ -346,10 +425,13 @@ void SupplyReminderManager_::writePendingChanges(uint32_t now) {
         if (millis() < nextWriteMillis[i]) {
             continue;
         }
-        if (postTreatment(item, local)) {
+        String id;
+        if (postTreatment(item, local, id)) {
             writeFailures[i] = 0;
             writeResult = 1;
             nightscoutStart[i] = local;
+            postedId[i] = id;
+            postedEpoch[i] = local;
             persistRequested = true;
             syncRequested = true;  // read the list back so the history shows it
         } else {
@@ -362,11 +444,32 @@ void SupplyReminderManager_::writePendingChanges(uint32_t now) {
 
 void SupplyReminderManager_::syncFromNightscout() {
     syncResult = 3;
-    uint32_t sites[HISTORY_SIZE] = {0}, starts[HISTORY_SIZE] = {0}, changes[HISTORY_SIZE] = {0};
+    TreatmentRef siteRefs[HISTORY_SIZE], startRefs[HISTORY_SIZE], changeRefs[HISTORY_SIZE];
     int siteCount = 0, startCount = 0, changeCount = 0;
-    const bool siteOk = fetchTreatments("Site Change", sites, HISTORY_SIZE, siteCount);
-    const bool startOk = fetchTreatments("Sensor Start", starts, HISTORY_SIZE, startCount);
-    const bool changeOk = fetchTreatments("Sensor Change", changes, HISTORY_SIZE, changeCount);
+    const bool siteOk = fetchTreatments("Site Change", siteRefs, HISTORY_SIZE, siteCount);
+    const bool startOk = fetchTreatments("Sensor Start", startRefs, HISTORY_SIZE, startCount);
+    const bool changeOk = fetchTreatments("Sensor Change", changeRefs, HISTORY_SIZE, changeCount);
+
+    // The notes the clock itself sent by mistake, set aside by a correction typed by hand, are removed
+    // from Nightscout so that they do not come back; notes entered elsewhere are left alone.
+    auto removeOwnIgnored = [this](TreatmentRef* refs, int count, int supply) {
+        const uint32_t local = localStart[supply].load(), until = ignoreUntil[supply].load();
+        for (int k = 0; k < count; k++) {
+            if (until != 0 && refs[k].fromClock && refs[k].epoch > local && refs[k].epoch <= until) {
+                deleteTreatment(refs[k].id);
+            }
+        }
+    };
+    removeOwnIgnored(siteRefs, siteCount, 0);
+    removeOwnIgnored(startRefs, startCount, 1);
+    removeOwnIgnored(changeRefs, changeCount, 1);
+
+    uint32_t sites[HISTORY_SIZE] = {0}, starts[HISTORY_SIZE] = {0}, changes[HISTORY_SIZE] = {0};
+    for (int k = 0; k < HISTORY_SIZE; k++) {
+        sites[k] = k < siteCount ? siteRefs[k].epoch : 0;
+        starts[k] = k < startCount ? startRefs[k].epoch : 0;
+        changes[k] = k < changeCount ? changeRefs[k].epoch : 0;
+    }
     siteCount = dropIgnoredSupplyChanges(sites, siteCount, localStart[0].load(), ignoreUntil[0].load());
     startCount = dropIgnoredSupplyChanges(starts, startCount, localStart[1].load(), ignoreUntil[1].load());
     changeCount = dropIgnoredSupplyChanges(changes, changeCount, localStart[1].load(), ignoreUntil[1].load());
@@ -587,6 +690,11 @@ void SupplyReminderManager_::tick() {
     }
 
     if (!overlayActive) {
+        for (int i = 0; i < 2; i++) {
+            if (undoRequested[i].exchange(false)) {
+                applyUndo(static_cast<SupplyItem>(i));
+            }
+        }
         const bool manual = syncRequested.exchange(false);
         if (manual && SettingsManager.settings.bg_source != BG_SOURCE::NIGHTSCOUT) {
             syncResult = 4;
@@ -644,6 +752,7 @@ String SupplyReminderManager_::statusJson() {
             }
         }
         object["state"] = state;
+        object["undo"] = undoEpoch[i].load() != 0 && localStart[i].load() == undoEpoch[i].load();
         JsonArray changes = object["history"].to<JsonArray>();
         for (int k = 0; k < HISTORY_SIZE; k++) {
             const uint32_t epoch = history[i][k].load();

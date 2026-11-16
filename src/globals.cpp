@@ -12,6 +12,7 @@ bool SENSOR_READING = true;
 uint8_t BATTERY_PERCENT;
 uint16_t BATTERY_RAW;
 bool MATRIX_OFF;
+bool DISPLAY_OFF_BY_DARK = false;
 uint8_t MIN_BRIGHTNESS = 1;
 uint8_t MAX_BRIGHTNESS = 120;
 const String sound_boot PROGMEM = "boot:d=4,o=5,b=320:32c,32e,32g";

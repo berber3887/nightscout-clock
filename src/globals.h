@@ -66,6 +66,10 @@ extern uint16_t LDR_RAW;
 extern uint8_t BATTERY_PERCENT;
 extern uint16_t BATTERY_RAW;
 extern bool MATRIX_OFF;
+// True while the display is off because the room is dark (the "turn off in the dark" setting).
+extern bool DISPLAY_OFF_BY_DARK;
+extern int DARK_RAW_NOW;
+extern int DARK_RAW_AT_OFF;
 extern uint8_t MIN_BRIGHTNESS;
 extern uint8_t MAX_BRIGHTNESS;
 extern const String sound_boot PROGMEM;

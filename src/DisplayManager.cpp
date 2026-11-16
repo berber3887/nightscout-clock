@@ -427,6 +427,13 @@ void DisplayManager_::rightButtonLong() {
 void DisplayManager_::selectButton() {
     Settings& settings = SettingsManager.settings;
 
+    if (MATRIX_OFF && DISPLAY_OFF_BY_DARK) {
+        // Switched off by the dark: a press only wakes it, the automatic mode stays.
+        setPower(true);
+        applySettings();
+        startBrightnessOverlay();
+        return;
+    }
     if (MATRIX_OFF || powerOffAfterBrightnessOverlay) {
         settings.brightness_mode = BRIGHTNES_MODE::MANUAL;
         settings.brightness_level = 0;

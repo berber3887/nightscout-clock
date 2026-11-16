@@ -33,6 +33,16 @@ void SettingsManager_::setup() { LittleFS.begin(); }
 namespace {
 // The data sources the firmware knows. A saved configuration without one of them starts the clock
 // with no source at all, so such a file must never replace a working one.
+size_t fileSize(const char* path) {
+    File file = LittleFS.open(path, "r");
+    if (!file) {
+        return 0;
+    }
+    const size_t size = file.size();
+    file.close();
+    return size;
+}
+
 bool isKnownDataSource(const String& source) {
     return source == "nightscout" || source == "dexcom" || source == "medtronic" || source == "api" ||
            source == "librelinkup" || source == "medtrum";
@@ -562,36 +572,42 @@ bool SettingsManager_::saveSettingsToFile() {
     return true;
 }
 
-bool SettingsManager_::trySaveJsonAsSettings(JsonDocument doc) {
-    const String text = doc.as<String>();
-    DEBUG_PRINTLN(text);
-
+bool SettingsManager_::trySaveJsonAsSettings(JsonVariantConst doc) {
     if (!isKnownDataSource(doc["data_source"].as<String>())) {
         DEBUG_PRINTLN("Refusing to save a configuration without a known data source");
         return false;
     }
+    const size_t expected = measureJson(doc);
+    if (expected == 0 || expected + 4096 > LittleFS.totalBytes() - LittleFS.usedBytes() + fileSize(CONFIG_JSON)) {
+        DEBUG_PRINTF("Refusing to save %u bytes of configuration: not enough room\n", (unsigned)expected);
+        return false;
+    }
 
     // Write a temporary file first and check it: a failed or cut short write then leaves the working
-    // configuration untouched instead of a damaged one.
+    // configuration untouched instead of a damaged one. The document is streamed to the file rather
+    // than turned into a String, to keep the memory needed low while Wi-Fi requests are in flight.
     LittleFS.remove(CONFIG_JSON_TEMP);
     File temp = LittleFS.open(CONFIG_JSON_TEMP, FILE_WRITE);
     if (!temp) {
         DEBUG_PRINTLN("Failed to open the temporary config file for writing");
         return false;
     }
-    const size_t written = temp.print(text);
+    const size_t written = serializeJson(doc, temp);
     temp.close();
-    if (written != text.length()) {
-        DEBUG_PRINTLN("Failed to write the whole configuration (file system full?)");
+    if (written != expected) {
+        DEBUG_PRINTF("Wrote %u of %u configuration bytes (file system full?)\n", (unsigned)written, (unsigned)expected);
         LittleFS.remove(CONFIG_JSON_TEMP);
         return false;
     }
 
+    // Read the file back, only the key that matters, so the check needs little memory.
     File check = LittleFS.open(CONFIG_JSON_TEMP, "r");
+    JsonDocument filter;
+    filter["data_source"] = true;
     JsonDocument verify;
     bool readable = false;
     if (check) {
-        readable = !deserializeJson(verify, check);
+        readable = !deserializeJson(verify, check, DeserializationOption::Filter(filter));
         check.close();
     }
     if (!readable || !isKnownDataSource(verify["data_source"].as<String>())) {
@@ -605,6 +621,5 @@ bool SettingsManager_::trySaveJsonAsSettings(JsonDocument doc) {
         DEBUG_PRINTLN("Failed to move the new configuration into place");
         return false;
     }
-
     return true;
 }

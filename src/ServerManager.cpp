@@ -376,7 +376,7 @@ void ServerManager_::setupWebServer(IPAddress ip) {
         request->send(response);
     });
 
-    ws->addHandler(new AsyncCallbackJsonWebHandler(
+    auto saveHandler = new AsyncCallbackJsonWebHandler(
         "/api/save", [this](AsyncWebServerRequest* request, JsonVariant& json) {
             if (!enforceAuthentication(request)) {
                 return;
@@ -398,7 +398,10 @@ void ServerManager_::setupWebServer(IPAddress ip) {
             } else {
                 request->send(200, "application/json", "{\"status\": \"Settings save error\"}");
             }
-        }));
+        });
+    // The settings grew with the faces and the reminders; the default 16 kB ceiling was close.
+    saveHandler->setMaxContentLength(49152);
+    ws->addHandler(saveHandler);
 
     ws->addHandler(new AsyncCallbackJsonWebHandler(
         "/api/alarm", [](AsyncWebServerRequest* request, JsonVariant& json) {
@@ -556,7 +559,10 @@ void ServerManager_::setupWebServer(IPAddress ip) {
         if (!enforceAuthentication(request)) {
             return;
         }
-        String body = "{\"lux\":" + String(CURRENT_LUX, 2) + ",\"display_off\":" + (MATRIX_OFF ? "true" : "false") + "}";
+        String body = "{\"lux\":" + String(CURRENT_LUX, 2) + ",\"raw\":" + String(DARK_RAW_NOW) +
+                      ",\"display_off\":" + (MATRIX_OFF ? "true" : "false") +
+                      ",\"off_by_dark\":" + (DISPLAY_OFF_BY_DARK ? "true" : "false") +
+                      ",\"raw_at_off\":" + String(DARK_RAW_AT_OFF) + "}";
         request->send(200, "application/json", body);
     });
 
@@ -587,6 +593,31 @@ void ServerManager_::setupWebServer(IPAddress ip) {
             if (!supplyReminder.requestChange(supply, at)) {
                 request->send(400, "application/json",
                               "{\"status\": \"error\", \"error\": \"the clock does not know the time yet, or that time is not allowed\"}");
+                return;
+            }
+            request->send(200, "application/json", "{\"status\": \"ok\"}");
+        }));
+
+    // Takes back the last confirmation of a supply.
+    ws->addHandler(new AsyncCallbackJsonWebHandler(
+        "/api/supplies/undo", [this](AsyncWebServerRequest* request, JsonVariant& json) {
+            if (!enforceAuthentication(request)) {
+                return;
+            }
+            const String item = json.is<JsonObject>() ? json["item"].as<String>() : String();
+            SupplyItem supply;
+            if (item == "catheter") {
+                supply = SupplyItem::CATHETER;
+            } else if (item == "sensor") {
+                supply = SupplyItem::SENSOR;
+            } else {
+                request->send(400, "application/json",
+                              "{\"status\": \"error\", \"error\": \"item must be catheter or sensor\"}");
+                return;
+            }
+            if (!supplyReminder.requestUndo(supply)) {
+                request->send(400, "application/json",
+                              "{\"status\": \"error\", \"error\": \"nothing to take back\"}");
                 return;
             }
             request->send(200, "application/json", "{\"status\": \"ok\"}");

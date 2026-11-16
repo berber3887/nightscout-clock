@@ -197,17 +197,6 @@ const uint8_t spriteTurkey[13 * 8] PROGMEM = {
     4, 4, 5, 5, 6, 6, 6, 5, 5, 4, 4, 0, 0
 };
 
-const uint8_t spriteMermaid[13 * 8] PROGMEM = {
-    0, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0,
-    0, 4, 4, 2, 2, 4, 4, 0, 0, 0, 0, 0, 0,
-    0, 4, 2, 3, 2, 3, 2, 4, 0, 0, 0, 0, 0,
-    0, 4, 2, 2, 2, 2, 2, 4, 0, 0, 0, 0, 0,
-    0, 0, 4, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0
-};
-
 const uint8_t spriteDinosaur[13 * 8] PROGMEM = {
     0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 1, 1, 1,
@@ -294,17 +283,6 @@ const uint8_t spriteStar[13 * 8] PROGMEM = {
     0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
     0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
     0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0
-};
-
-const uint8_t spriteCandles[13 * 8] PROGMEM = {
-    0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0,
-    0, 2, 3, 2, 0, 0, 2, 3, 2, 0, 0, 0, 0,
-    0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0
 };
 
 const uint8_t spriteDrop[13 * 8] PROGMEM = {
@@ -505,7 +483,6 @@ const CritterDef CRITTERS[] = {
     {spriteBat, {0xB01F, 0xFFFF, 0xF800, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Bat
     {spriteWitch, {0xA81F, 0x07E0, 0x0000, 0x07E0, 0x07E0, 0x07E0, 0x07E0}},  // Witch
     {spriteTurkey, {0xD343, 0xF800, 0x0000, 0xF800, 0xFC00, 0xFFE0, 0xF800}},  // Turkey
-    {spriteMermaid, {0x07FF, 0xFCF4, 0x0000, 0xFD20, 0xFD20, 0xFD20, 0xFD20}},  // Mermaid
     {spriteDinosaur, {0x07E0, 0xFFE0, 0x0000, 0xFFE0, 0xFFE0, 0xFFE0, 0xFFE0}},  // Dinosaur
     {spriteButterfly, {0xFC9F, 0x8410, 0x0000, 0x8410, 0x8410, 0x8410, 0x8410}},  // Butterfly
     {spriteBee, {0xFFE0, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Bee
@@ -514,7 +491,6 @@ const CritterDef CRITTERS[] = {
     {spriteSanta, {0xF800, 0xFFFF, 0x0000, 0xFCF4, 0xFCF4, 0xFCF4, 0xFCF4}},  // Santa
     {spriteGift, {0x07E0, 0xFFE0, 0x0000, 0xFFE0, 0xFFE0, 0xFFE0, 0xFFE0}},  // Gift
     {spriteStar, {0xFFE0, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Star
-    {spriteCandles, {0xFFFF, 0xFD20, 0xFFE0, 0x8410, 0x8410, 0x8410, 0x8410}},  // Candles
     {spriteDrop, {0x041F, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}},  // Drop
     {spriteBasketball, {0xFC00, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF}},  // Basketball
     {spriteFootball, {0xFFFF, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0xFFFF}},  // Football

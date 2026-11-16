@@ -21,7 +21,7 @@ const SIM = path.join(HERE, "simulator");
 const DATA = path.join(ROOT, "data");
 
 // Order matters: later files use what earlier ones define.
-const JS = ["util.js", "api.js", "schema.js", "form.js", "preview.js", "preview-panel.js", "cards.js", "app.js"];
+const JS = ["util.js", "i18n.js", "api.js", "schema.js", "form.js", "preview.js", "preview-panel.js", "cards.js", "app.js"];
 // The simulator page: the preview and the schema's constants, without the clock's API or the settings form.
 const SIM_JS = ["util.js", "schema.js", "preview.js", "preview-panel.js", path.join(SIM, "simulator.js")];
 
