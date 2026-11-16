@@ -1106,6 +1106,7 @@ function suppliesCard() {
     const supplyBlock = s => {
         const key = k => `supply_${s.t}_${k}`
         const status = el("p.help", "Reading the dates from the clock…")
+        const past = el("p.help")
         const when = el("input", { type: "datetime-local", "aria-label": `${s.name} changed on` })
         const stamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
         when.value = stamp.toISOString().slice(0, 16)
@@ -1119,6 +1120,7 @@ function suppliesCard() {
             el("div.stack",
                 field(key("days"), `Change the ${s.name.toLowerCase()} every`, el("div.unit", numberInput(key("days")), el("span", "days"))),
                 status,
+                past,
                 el("div.row", now, when, set)))
         /**
          * Say when the supply was last changed and when the next change is due, using the lifetime being edited.
@@ -1126,6 +1128,8 @@ function suppliesCard() {
          */
         const paint = () => {
             const i = info && info[s.t]
+            const list = i && Array.isArray(i.history) ? i.history : []
+            past.textContent = list.length ? `Last changes: ${list.map(fmtDate).join(" · ")}` : ""
             if (!i) { status.textContent = problem || "Reading the dates from the clock…"; return }
             if (!i.start) {
                 status.textContent = info.nightscout
@@ -1179,6 +1183,7 @@ function suppliesCard() {
             field("supply_warn_hours", "Start warning", el("div.unit", numberInput("supply_warn_hours"), el("span", "hours before")), "How long before the change is due the message starts."),
             field("supply_repeat_minutes", "Repeat every", segmented("supply_repeat_minutes", SUPPLY_REPEATS, { numeric: true, label: "Reminder repeat" }), "How often the message comes back until you confirm.")),
         toggleRow("supply_friendly", "Gentle messages for a child", "Shows the reminder as a friendly French sentence, for example \"Coucou ! Bientôt, on change le cathéter\" (ten different sentences, picked at random), instead of the short English text."),
+        toggleRow("supply_nightscout_write", "Write the change in Nightscout", "When you confirm a change on the clock or here, it is also logged in Nightscout as a \"Site Change\" or \"Sensor Change\" at that time. The history above comes back from Nightscout after a restart. Needs the API secret to allow writing."),
         toggleRow("supply_beep", "Beep with the reminder", "Plays a short double beep each time the message appears."),
         el("div.row.spread", nightscout, read))
     load()

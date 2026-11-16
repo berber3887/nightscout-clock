@@ -252,6 +252,7 @@ bool SettingsManager_::loadSettingsFromFile() {
     settings.supply_repeat_minutes = (*doc)["supply_repeat_minutes"] | 10;
     settings.supply_beep = (*doc)["supply_beep"] | false;
     settings.supply_friendly = (*doc)["supply_friendly"] | true;
+    settings.supply_nightscout_write = (*doc)["supply_nightscout_write"] | true;
     settings.dark_off_enabled = (*doc)["dark_off_enabled"] | false;
     settings.dark_off_lux = (*doc)["dark_off_lux"] | 1;
     if (settings.dark_off_lux < 1 || settings.dark_off_lux > 20) {
@@ -490,6 +491,7 @@ bool SettingsManager_::saveSettingsToFile() {
     (*doc)["supply_repeat_minutes"] = settings.supply_repeat_minutes;
     (*doc)["supply_beep"] = settings.supply_beep;
     (*doc)["supply_friendly"] = settings.supply_friendly;
+    (*doc)["supply_nightscout_write"] = settings.supply_nightscout_write;
     (*doc)["dark_off_enabled"] = settings.dark_off_enabled;
     (*doc)["dark_off_lux"] = settings.dark_off_lux;
 

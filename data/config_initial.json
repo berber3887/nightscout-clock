@@ -70,6 +70,7 @@
     "supply_repeat_minutes": 10,
     "supply_beep": false,
     "supply_friendly": true,
+    "supply_nightscout_write": true,
     "dark_off_enabled": false,
     "dark_off_lux": 1,
     "librelinkup_email": "",

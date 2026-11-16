@@ -93,6 +93,10 @@ void SupplyReminderManager_::load() {
     localStart[indexOf(SupplyItem::SENSOR)] = doc["sensor"].as<uint32_t>();
     nightscoutStart[indexOf(SupplyItem::CATHETER)] = doc["ns_catheter"].as<uint32_t>();
     nightscoutStart[indexOf(SupplyItem::SENSOR)] = doc["ns_sensor"].as<uint32_t>();
+    for (int k = 0; k < HISTORY_SIZE; k++) {
+        history[0][k] = doc["h_catheter"][k].as<uint32_t>();
+        history[1][k] = doc["h_sensor"][k].as<uint32_t>();
+    }
 }
 
 void SupplyReminderManager_::persist() {
@@ -101,6 +105,12 @@ void SupplyReminderManager_::persist() {
     doc["sensor"] = localStart[indexOf(SupplyItem::SENSOR)].load();
     doc["ns_catheter"] = nightscoutStart[indexOf(SupplyItem::CATHETER)].load();
     doc["ns_sensor"] = nightscoutStart[indexOf(SupplyItem::SENSOR)].load();
+    JsonArray historyCatheter = doc["h_catheter"].to<JsonArray>();
+    JsonArray historySensor = doc["h_sensor"].to<JsonArray>();
+    for (int k = 0; k < HISTORY_SIZE; k++) {
+        historyCatheter.add(history[0][k].load());
+        historySensor.add(history[1][k].load());
+    }
     File file = LittleFS.open(SUPPLIES_FILE, FILE_WRITE);
     if (!file) {
         DEBUG_PRINTLN("Supplies: cannot open the file for writing");
@@ -187,17 +197,17 @@ bool SupplyReminderManager_::shouldSync() const {
     return millis() - lastSyncMillis >= SYNC_INTERVAL_MS;
 }
 
-// Asks Nightscout for the newest treatment of one kind. Returns false when the request failed; an
-// empty list is a success that leaves `epochOut` at zero.
-bool SupplyReminderManager_::fetchLatestTreatment(const char* eventType, uint32_t& epochOut) {
-    epochOut = 0;
+// Asks Nightscout for the newest treatments of one kind, newest first. Returns false when the request
+// failed; an empty list is a success with a count of zero.
+bool SupplyReminderManager_::fetchTreatments(const char* eventType, uint32_t* out, int max, int& count) {
+    count = 0;
     String base = SettingsManager.settings.nightscout_url;
     if (!base.endsWith("/")) {
         base += "/";
     }
     String type = eventType;
     type.replace(" ", "%20");
-    const String url = base + "api/v1/treatments?find[eventType]=" + type + "&count=1";
+    const String url = base + "api/v1/treatments?find[eventType]=" + type + "&count=" + String(max);
 
     std::unique_ptr<WiFiClientSecure> secure;
     HTTPClient http;
@@ -239,26 +249,115 @@ bool SupplyReminderManager_::fetchLatestTreatment(const char* eventType, uint32_
         DEBUG_PRINTF("Supplies: unexpected Nightscout answer for %s\n", eventType);
         return false;
     }
-    JsonArray treatments = doc.as<JsonArray>();
-    if (treatments.size() == 0) {
-        return true;
-    }
-    JsonVariant newest = treatments[0];
-    if (newest["created_at"].is<const char*>()) {
-        epochOut = parseNightscoutTimestamp(newest["created_at"].as<const char*>());
-    }
-    if (epochOut == 0 && !newest["mills"].isNull()) {
-        epochOut = static_cast<uint32_t>(newest["mills"].as<unsigned long long>() / 1000ULL);
+    for (JsonVariant treatment : doc.as<JsonArray>()) {
+        if (count >= max) {
+            break;
+        }
+        uint32_t epoch = 0;
+        if (treatment["created_at"].is<const char*>()) {
+            epoch = parseNightscoutTimestamp(treatment["created_at"].as<const char*>());
+        }
+        if (epoch == 0 && !treatment["mills"].isNull()) {
+            epoch = static_cast<uint32_t>(treatment["mills"].as<unsigned long long>() / 1000ULL);
+        }
+        if (epoch != 0) {
+            out[count++] = epoch;
+        }
     }
     return true;
 }
 
+// Logs a confirmed change in Nightscout. Returns true when Nightscout accepted it.
+bool SupplyReminderManager_::postTreatment(SupplyItem item, uint32_t epoch) {
+    String base = SettingsManager.settings.nightscout_url;
+    if (!base.endsWith("/")) {
+        base += "/";
+    }
+    const String url = base + "api/v1/treatments";
+
+    char stamp[32];
+    formatNightscoutTimestamp(stamp, sizeof(stamp), epoch);
+    JsonDocument doc;
+    doc["eventType"] = item == SupplyItem::CATHETER ? "Site Change" : "Sensor Change";
+    doc["created_at"] = stamp;
+    doc["enteredBy"] = "nightscout-clock";
+    doc["notes"] = "Confirmed on the Nightscout clock";
+    String body;
+    serializeJson(doc, body);
+
+    std::unique_ptr<WiFiClientSecure> secure;
+    HTTPClient http;
+    bool began;
+    if (url.startsWith("https")) {
+        secure.reset(new WiFiClientSecure());
+        secure->setInsecure();
+        began = http.begin(*secure, url);
+    } else {
+        began = http.begin(url);
+    }
+    if (!began) {
+        return false;
+    }
+    http.setTimeout(8000);
+    http.setConnectTimeout(5000);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Accept", "application/json");
+    const String apiKey = SettingsManager.settings.nightscout_api_key;
+    if (apiKey != "") {
+        http.addHeader("api-secret", sha1(apiKey));
+    }
+    const int code = http.POST(body);
+    http.end();
+    DEBUG_PRINTF("Supplies: Nightscout answered %d to the %s change\n", code, nameOf(item));
+    return code == HTTP_CODE_OK || code == HTTP_CODE_CREATED;
+}
+
+// A change confirmed here is newer than anything Nightscout knows: send it. Also catches up after a
+// restart or a spell without network, because it compares the saved dates rather than remembering a
+// request.
+void SupplyReminderManager_::writePendingChanges(uint32_t now) {
+    const Settings& settings = SettingsManager.settings;
+    if (!settings.supply_nightscout_write) {
+        writeResult = 3;
+        return;
+    }
+    if (!firstSyncDone || settings.bg_source != BG_SOURCE::NIGHTSCOUT || settings.nightscout_url.length() == 0) {
+        return;
+    }
+    for (int i = 0; i < 2; i++) {
+        const SupplyItem item = static_cast<SupplyItem>(i);
+        const uint32_t local = localStart[i].load();
+        if (!enabled(item) || local == 0 || local <= nightscoutStart[i].load() || local > now + 300) {
+            continue;
+        }
+        if (millis() < nextWriteMillis[i]) {
+            continue;
+        }
+        if (postTreatment(item, local)) {
+            writeFailures[i] = 0;
+            writeResult = 1;
+            nightscoutStart[i] = local;
+            persistRequested = true;
+            syncRequested = true;  // read the list back so the history shows it
+        } else {
+            writeResult = 2;
+            writeFailures[i]++;
+            nextWriteMillis[i] = millis() + (writeFailures[i] < 4 ? 60000UL : 3600000UL);
+        }
+    }
+}
+
 void SupplyReminderManager_::syncFromNightscout() {
     syncResult = 3;
-    uint32_t siteChange = 0, sensorStart = 0, sensorChange = 0;
-    const bool siteOk = fetchLatestTreatment("Site Change", siteChange);
-    const bool startOk = fetchLatestTreatment("Sensor Start", sensorStart);
-    const bool changeOk = fetchLatestTreatment("Sensor Change", sensorChange);
+    uint32_t sites[HISTORY_SIZE] = {0}, starts[HISTORY_SIZE] = {0}, changes[HISTORY_SIZE] = {0};
+    int siteCount = 0, startCount = 0, changeCount = 0;
+    const bool siteOk = fetchTreatments("Site Change", sites, HISTORY_SIZE, siteCount);
+    const bool startOk = fetchTreatments("Sensor Start", starts, HISTORY_SIZE, startCount);
+    const bool changeOk = fetchTreatments("Sensor Change", changes, HISTORY_SIZE, changeCount);
+    const uint32_t siteChange = siteCount > 0 ? sites[0] : 0;
+    const uint32_t sensorStart = startCount > 0 ? starts[0] : 0;
+    const uint32_t sensorChange = changeCount > 0 ? changes[0] : 0;
 
     bool changed = false;
     if (siteOk && nightscoutStart[indexOf(SupplyItem::CATHETER)] != siteChange) {
@@ -272,7 +371,19 @@ void SupplyReminderManager_::syncFromNightscout() {
             changed = true;
         }
     }
-    if (changed) {
+    if (siteOk) {
+        for (int k = 0; k < HISTORY_SIZE; k++) {
+            history[0][k] = sites[k];
+        }
+    }
+    if (startOk && changeOk) {
+        uint32_t merged[HISTORY_SIZE];
+        mergeSupplyHistory(starts, startCount, changes, changeCount, merged, HISTORY_SIZE);
+        for (int k = 0; k < HISTORY_SIZE; k++) {
+            history[1][k] = merged[k];
+        }
+    }
+    if (changed || siteOk || (startOk && changeOk)) {
         persistRequested = true;
     }
 
@@ -467,6 +578,7 @@ void SupplyReminderManager_::tick() {
         } else if (manual || shouldSync()) {
             syncFromNightscout();
         }
+        writePendingChanges(now);
     }
 
     updateOverlay(now);
@@ -485,6 +597,8 @@ String SupplyReminderManager_::statusJson() {
         settings.bg_source == BG_SOURCE::NIGHTSCOUT && settings.nightscout_url.length() > 0;
     doc["sync"] = SYNC_NAMES[syncResult.load() <= 4 ? syncResult.load() : 0];
     doc["last_sync"] = lastSyncEpoch.load();
+    static const char* const WRITE_NAMES[] = {"none", "ok", "failed", "off"};
+    doc["write"] = WRITE_NAMES[writeResult.load() <= 3 ? writeResult.load() : 0];
     for (int i = 0; i < 2; i++) {
         const SupplyItem item = static_cast<SupplyItem>(i);
         const SupplyStatus status = statusOf(item, now);
@@ -515,6 +629,13 @@ String SupplyReminderManager_::statusJson() {
             }
         }
         object["state"] = state;
+        JsonArray changes = object["history"].to<JsonArray>();
+        for (int k = 0; k < HISTORY_SIZE; k++) {
+            const uint32_t epoch = history[i][k].load();
+            if (epoch != 0) {
+                changes.add(epoch);
+            }
+        }
     }
     String body;
     serializeJson(doc, body);

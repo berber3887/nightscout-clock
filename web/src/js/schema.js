@@ -554,6 +554,7 @@ function normalizeLoaded(c) {
     out.supply_sensor_enabled = !!out.supply_sensor_enabled
     out.supply_beep = !!out.supply_beep
     out.supply_friendly = out.supply_friendly ?? true
+    out.supply_nightscout_write = out.supply_nightscout_write ?? true
     out.dark_off_enabled = !!out.dark_off_enabled
     out.dark_off_lux ??= 1
     out.supply_catheter_days ??= 3

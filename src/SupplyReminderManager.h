@@ -41,6 +41,9 @@ private:
         for (int i = 0; i < 2; i++) {
             localStart[i] = 0;
             nightscoutStart[i] = 0;
+            for (int k = 0; k < HISTORY_SIZE; k++) {
+                history[i][k] = 0;
+            }
         }
     }
 
@@ -49,6 +52,13 @@ private:
     // Epochs are 32 bits so that the web server task reads them in one piece.
     std::atomic<uint32_t> localStart[2];
     std::atomic<uint32_t> nightscoutStart[2];
+    // The last changes of each supply, newest first, as Nightscout lists them (0 = unused).
+    static constexpr int HISTORY_SIZE = 5;
+    std::atomic<uint32_t> history[2][HISTORY_SIZE];
+    // 0 nothing sent yet, 1 the last write worked, 2 it failed, 3 not allowed by the settings.
+    std::atomic<uint8_t> writeResult{0};
+    int writeFailures[2] = {0, 0};
+    unsigned long nextWriteMillis[2] = {0, 0};
     std::atomic<bool> persistRequested{false};
     std::atomic<bool> syncRequested{false};
     // 0 never tried, 1 ok, 2 failed, 3 syncing, 4 the data source is not Nightscout.
@@ -90,7 +100,9 @@ private:
     void persist();
     bool shouldSync() const;
     void syncFromNightscout();
-    bool fetchLatestTreatment(const char* eventType, uint32_t& epochOut);
+    bool fetchTreatments(const char* eventType, uint32_t* out, int max, int& count);
+    bool postTreatment(SupplyItem item, uint32_t epoch);
+    void writePendingChanges(uint32_t now);
 
     bool canShowOverlay() const;
     void startOverlay(SupplyItem item, uint32_t now);
