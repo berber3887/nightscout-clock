@@ -1,6 +1,6 @@
 {
   "name": "Nightscout clock (Debug)",
-  "version": "1.4.9-debug",
+  "version": "1.4.10-debug",
   "builds": [
     {
       "chipFamily": "ESP32",
