@@ -600,6 +600,24 @@ function surpriseModeCard() {
 }
 
 /**
+ * Show the light the clock measures right now, refreshed every few seconds while the page shows it.
+ * @returns {HTMLElement}
+ */
+function lightReading() {
+    const out = el("p.help", "Reading the light from the clock…")
+    const refresh = async () => {
+        if (!out.isConnected) return clearInterval(timer)
+        const r = await api.light().catch(() => null)
+        if (r && r.ok && r.data && typeof r.data.lux === "number") {
+            out.textContent = `Light measured by the clock now: ${r.data.lux} lux${r.data.display_off ? " (display off)" : ""}. It switches off at or below the level above and comes back a little higher.`
+        }
+    }
+    const timer = setInterval(refresh, 3000)
+    setTimeout(refresh, 300)
+    return out
+}
+
+/**
  * Build automatic brightness choices and a manual slider, remembering the last manual level within the card.
  * @returns {HTMLElement}
  */
@@ -617,7 +635,9 @@ function brightnessCard() {
         if (mode !== "manual") return el("div.stack", field("brightness_level", null, seg, "Follows the clock's light sensor. Try the room light slider in the preview."),
             toggleRow("dark_off_enabled", "Turn off in the dark", "Switches the display off when the room is dark and back on by itself with the light. A glucose alarm always lights it up."),
             reactive(["dark_off_enabled"], () => form.get("dark_off_enabled")
-                ? el("div.grid", field("dark_off_lux", "Dark below", el("div.unit", numberInput("dark_off_lux"), el("span", "lux")), "1 is a dark bedroom. Raise it if the clock stays lit when the room is dark."))
+                ? el("div.stack",
+                    el("div.grid", field("dark_off_lux", "Dark below", el("div.unit", numberInput("dark_off_lux"), el("span", "lux")), "1 is a dark bedroom. Raise it if the clock stays lit when the room is dark.")),
+                    lightReading())
                 : el("span", { hidden: true })))
         const range = el("input", { type: "range", min: 1, max: 10, step: 1, id: "f_brightness_manual", "aria-label": "Manual brightness" })
         range.value = String(level)

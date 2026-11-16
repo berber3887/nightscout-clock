@@ -56,13 +56,13 @@ static void updateDarkOff(float lux) {
         darkOffActive = false;  // someone switched the display on with a button
     }
     if (darkOffActive) {
-        const float wakeLux = settings.dark_off_lux * 2.0f + 0.5f;  // higher than the switch-off level
+        const float wakeLux = settings.dark_off_lux + 0.5f;  // a little above the switch-off level
         if (lux < wakeLux) {
             brightSince = 0;
         } else if (brightSince == 0) {
             brightSince = now;
         }
-        if (!settings.dark_off_enabled || !automatic || alarm || (brightSince != 0 && now - brightSince >= 2000)) {
+        if (!settings.dark_off_enabled || !automatic || alarm || (brightSince != 0 && now - brightSince >= 1000)) {
             darkOffActive = false;
             DisplayManager.setPower(true);
         }

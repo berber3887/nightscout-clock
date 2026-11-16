@@ -217,6 +217,10 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
 
 ## Changes
 
+### 1.4.7
+
+- "Turn off in the dark" now wakes the display at a lower light level than before, and the settings page shows the light the clock measures, to help choose the level
+
 ### 1.4.6
 
 - Setting a past date by hand ("Set this time") now wins over later notes already in Nightscout, such as test confirmations: those notes are set aside and the date typed is sent to Nightscout. A change logged after the correction still counts

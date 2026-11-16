@@ -551,6 +551,15 @@ void ServerManager_::setupWebServer(IPAddress ip) {
         request->send(200, "application/json", supplyReminder.statusJson());
     });
 
+    // The light the clock measures, to help set the "turn off in the dark" level.
+    ws->on("/api/light", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (!enforceAuthentication(request)) {
+            return;
+        }
+        String body = "{\"lux\":" + String(CURRENT_LUX, 2) + ",\"display_off\":" + (MATRIX_OFF ? "true" : "false") + "}";
+        request->send(200, "application/json", body);
+    });
+
     // Confirms a supply as changed now, or at the time given in "at" (Unix seconds).
     ws->addHandler(new AsyncCallbackJsonWebHandler(
         "/api/supplies/change", [this](AsyncWebServerRequest* request, JsonVariant& json) {

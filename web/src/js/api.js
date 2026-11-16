@@ -303,6 +303,7 @@ const api = (() => {
      * @returns {Promise<ApiReply<SuppliesStatus>>}
      */
     const supplies = () => request("GET", "/api/supplies")
+    const light = () => request("GET", "/api/light")
     /**
      * Confirm a supply as changed, now or at a given time. This takes effect at once, without saving settings.
      * @param {'catheter' | 'sensor'} item - Supply that was changed.
@@ -374,6 +375,6 @@ const api = (() => {
 
     return {
         on: events.on, startStatus, saveSettings,
-        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, changeSupply, syncSupplies, patients, scanWifi,
+        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, light, changeSupply, syncSupplies, patients, scanWifi,
     }
 })()
