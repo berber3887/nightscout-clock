@@ -1,6 +1,6 @@
 {
     "name": "Nightscout clock",
-    "version": "1.4.8",
+    "version": "1.4.9",
     "new_install_prompt_erase": true,
     "builds": [
         {
