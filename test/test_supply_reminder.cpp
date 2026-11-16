@@ -131,6 +131,23 @@ static void timestampsRoundTripAndHistoryMerges() {
     assert(few[0] == 9000000 && few[1] == 0 && few[4] == 0);
 }
 
+static void correctionIgnoresMistakenNotes() {
+    // Real change on day 100, tests on day 200 (notes at 200, 201, 202), correction made at 210.
+    uint32_t list[5] = {202, 201, 200, 100, 50};
+    int kept = dropIgnoredSupplyChanges(list, 5, 100, 210);
+    assert(kept == 2 && list[0] == 100 && list[1] == 50 && list[2] == 0);
+    // A change after the correction still counts.
+    uint32_t later[5] = {300, 202, 100, 0, 0};
+    kept = dropIgnoredSupplyChanges(later, 3, 100, 210);
+    assert(kept == 2 && later[0] == 300 && later[1] == 100);
+    // Nothing to ignore without a correction.
+    uint32_t plain[3] = {9, 8, 7};
+    assert(dropIgnoredSupplyChanges(plain, 3, 5, 0) == 3);
+    // A newer local confirmation: the window is empty.
+    uint32_t newer[3] = {250, 202, 100};
+    assert(dropIgnoredSupplyChanges(newer, 3, 250, 210) == 3);
+}
+
 static void accentsBecomeLatin1Capitals() {
     char text[] = "é è ê à ô ç î ï û ù É ! a";
     utf8ToLatin1Capitals(text);
@@ -192,6 +209,7 @@ int main() {
     messagesNameTheSupply();
     friendlyMessagesUseAccentsAndVary();
     accentsBecomeLatin1Capitals();
+    correctionIgnoresMistakenNotes();
     timestampsRoundTripAndHistoryMerges();
     roundsStartWhenDueAndRepeat();
     nightscoutTimestampsAreParsed();

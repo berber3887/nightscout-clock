@@ -41,6 +41,7 @@ private:
         for (int i = 0; i < 2; i++) {
             localStart[i] = 0;
             nightscoutStart[i] = 0;
+            ignoreUntil[i] = 0;
             for (int k = 0; k < HISTORY_SIZE; k++) {
                 history[i][k] = 0;
             }
@@ -52,6 +53,8 @@ private:
     // Epochs are 32 bits so that the web server task reads them in one piece.
     std::atomic<uint32_t> localStart[2];
     std::atomic<uint32_t> nightscoutStart[2];
+    // Notes in Nightscout dated after the local date and up to this time are ignored (see dropIgnoredSupplyChanges).
+    std::atomic<uint32_t> ignoreUntil[2];
     // The last changes of each supply, newest first, as Nightscout lists them (0 = unused).
     static constexpr int HISTORY_SIZE = 5;
     std::atomic<uint32_t> history[2][HISTORY_SIZE];

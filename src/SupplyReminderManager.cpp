@@ -93,6 +93,8 @@ void SupplyReminderManager_::load() {
     localStart[indexOf(SupplyItem::SENSOR)] = doc["sensor"].as<uint32_t>();
     nightscoutStart[indexOf(SupplyItem::CATHETER)] = doc["ns_catheter"].as<uint32_t>();
     nightscoutStart[indexOf(SupplyItem::SENSOR)] = doc["ns_sensor"].as<uint32_t>();
+    ignoreUntil[0] = doc["ign_catheter"].as<uint32_t>();
+    ignoreUntil[1] = doc["ign_sensor"].as<uint32_t>();
     for (int k = 0; k < HISTORY_SIZE; k++) {
         history[0][k] = doc["h_catheter"][k].as<uint32_t>();
         history[1][k] = doc["h_sensor"][k].as<uint32_t>();
@@ -105,6 +107,8 @@ void SupplyReminderManager_::persist() {
     doc["sensor"] = localStart[indexOf(SupplyItem::SENSOR)].load();
     doc["ns_catheter"] = nightscoutStart[indexOf(SupplyItem::CATHETER)].load();
     doc["ns_sensor"] = nightscoutStart[indexOf(SupplyItem::SENSOR)].load();
+    doc["ign_catheter"] = ignoreUntil[0].load();
+    doc["ign_sensor"] = ignoreUntil[1].load();
     JsonArray historyCatheter = doc["h_catheter"].to<JsonArray>();
     JsonArray historySensor = doc["h_sensor"].to<JsonArray>();
     for (int k = 0; k < HISTORY_SIZE; k++) {
@@ -127,6 +131,7 @@ bool SupplyReminderManager_::requestChange(SupplyItem item, uint32_t epoch) {
     if (now < SUPPLY_MIN_VALID_EPOCH) {
         return false;
     }
+    const bool explicitTime = epoch != 0;
     if (epoch == 0) {
         epoch = now;
     }
@@ -136,6 +141,13 @@ bool SupplyReminderManager_::requestChange(SupplyItem item, uint32_t epoch) {
         return false;
     }
     localStart[indexOf(item)] = epoch;
+    // A date typed by hand that is older than what Nightscout knows is a correction (for example after
+    // test confirmations): Nightscout's later notes up to now are set aside, and the date is sent.
+    if (explicitTime && epoch < nightscoutStart[indexOf(item)].load()) {
+        ignoreUntil[indexOf(item)] = now;
+        nightscoutStart[indexOf(item)] = 0;
+        syncRequested = true;
+    }
     persistRequested = true;
     return true;
 }
@@ -355,6 +367,9 @@ void SupplyReminderManager_::syncFromNightscout() {
     const bool siteOk = fetchTreatments("Site Change", sites, HISTORY_SIZE, siteCount);
     const bool startOk = fetchTreatments("Sensor Start", starts, HISTORY_SIZE, startCount);
     const bool changeOk = fetchTreatments("Sensor Change", changes, HISTORY_SIZE, changeCount);
+    siteCount = dropIgnoredSupplyChanges(sites, siteCount, localStart[0].load(), ignoreUntil[0].load());
+    startCount = dropIgnoredSupplyChanges(starts, startCount, localStart[1].load(), ignoreUntil[1].load());
+    changeCount = dropIgnoredSupplyChanges(changes, changeCount, localStart[1].load(), ignoreUntil[1].load());
     const uint32_t siteChange = siteCount > 0 ? sites[0] : 0;
     const uint32_t sensorStart = startCount > 0 ? starts[0] : 0;
     const uint32_t sensorChange = changeCount > 0 ? changes[0] : 0;

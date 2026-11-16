@@ -232,6 +232,24 @@ inline int mergeSupplyHistory(const uint32_t* a, int countA, const uint32_t* b, 
     return kept;
 }
 
+// Removes from a newest-first list the entries that fall after `localEpoch` and up to `ignoreUntil`.
+// They are the notes made by mistake before the user set the real date by hand: the date typed
+// wins over them, while a change logged after the correction still counts. Returns the new count;
+// the freed slots are set to 0.
+inline int dropIgnoredSupplyChanges(uint32_t* list, int count, uint32_t localEpoch, uint32_t ignoreUntil) {
+    int kept = 0;
+    for (int i = 0; i < count; i++) {
+        const bool ignored = ignoreUntil != 0 && list[i] > localEpoch && list[i] <= ignoreUntil;
+        if (!ignored) {
+            list[kept++] = list[i];
+        }
+    }
+    for (int i = kept; i < count; i++) {
+        list[i] = 0;
+    }
+    return kept;
+}
+
 // Reads a Nightscout timestamp such as "2026-11-13T21:05:00.000Z" (an offset such as "+01:00" is
 // honoured) and returns its Unix time, or 0 when the text is not a timestamp.
 inline uint32_t parseNightscoutTimestamp(const char* text) {
