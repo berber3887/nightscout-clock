@@ -217,6 +217,10 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
 
 ## Changes
 
+### 1.4.4
+
+- Added "Turn off in the dark" for the automatic brightness modes: the display switches off after 30 seconds of darkness (level adjustable in lux) and comes back by itself with the light; a glucose alarm always lights it up
+
 ### 1.4.3
 
 - Added twelve faces: Christmas tree, Snowman, Basketball jersey, Snowflake, Hen, Easter eggs, Strawberry, Skull, Flower, Insulin pump, Crescent moon and Motorbike

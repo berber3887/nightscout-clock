@@ -132,6 +132,9 @@ public:
     bool supply_beep = false;
     // Shows the reminders as gentle French sentences for a child instead of the short English text.
     bool supply_friendly = true;
+    // In an automatic brightness mode, turns the display off when the room is dark and back on with the light.
+    bool dark_off_enabled = false;
+    int dark_off_lux = 1;  // switch off at or below this many lux
     bool web_auth_enable;
     String web_auth_password;
 };

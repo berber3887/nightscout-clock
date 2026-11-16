@@ -614,7 +614,11 @@ function brightnessCard() {
                 type: "button", "aria-pressed": String(mode === m), dataset: { value: m },
                 onclick: () => form.set("brightness_level", value == null ? lastManual : value),
             }, text)))
-        if (mode !== "manual") return el("div.stack", field("brightness_level", null, seg, "Follows the clock's light sensor. Try the room light slider in the preview."))
+        if (mode !== "manual") return el("div.stack", field("brightness_level", null, seg, "Follows the clock's light sensor. Try the room light slider in the preview."),
+            toggleRow("dark_off_enabled", "Turn off in the dark", "Switches the display off when the room is dark and back on by itself with the light. A glucose alarm always lights it up."),
+            reactive(["dark_off_enabled"], () => form.get("dark_off_enabled")
+                ? el("div.grid", field("dark_off_lux", "Dark below", el("div.unit", numberInput("dark_off_lux"), el("span", "lux")), "1 is a dark bedroom. Raise it if the clock stays lit when the room is dark."))
+                : el("span", { hidden: true })))
         const range = el("input", { type: "range", min: 1, max: 10, step: 1, id: "f_brightness_manual", "aria-label": "Manual brightness" })
         range.value = String(level)
         const out = el("output", String(level))

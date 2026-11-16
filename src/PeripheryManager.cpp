@@ -39,6 +39,48 @@ int readIndex = 0;
 int sampleIndex = 0;
 unsigned long previousMillis_BatTempHum = 0;
 unsigned long previousMillis_LDR = 0;
+
+// Turns the display off when the room has been dark for a while and on again with the light.
+// Only in the automatic brightness modes; a glucose alarm always wakes the display.
+static bool darkOffActive = false;
+static unsigned long darkSince = 0;
+static unsigned long brightSince = 0;
+
+static void updateDarkOff(float lux) {
+    const Settings& settings = SettingsManager.settings;
+    const unsigned long now = millis();
+    const bool automatic = settings.brightness_mode != BRIGHTNES_MODE::MANUAL;
+    const bool alarm = bgAlarmManager.isAlarmActive();
+
+    if (darkOffActive && !MATRIX_OFF) {
+        darkOffActive = false;  // someone switched the display on with a button
+    }
+    if (darkOffActive) {
+        const float wakeLux = settings.dark_off_lux * 2.0f + 0.5f;  // higher than the switch-off level
+        if (lux < wakeLux) {
+            brightSince = 0;
+        } else if (brightSince == 0) {
+            brightSince = now;
+        }
+        if (!settings.dark_off_enabled || !automatic || alarm || (brightSince != 0 && now - brightSince >= 2000)) {
+            darkOffActive = false;
+            DisplayManager.setPower(true);
+        }
+        return;
+    }
+    if (!settings.dark_off_enabled || !automatic || MATRIX_OFF || alarm || lux > settings.dark_off_lux) {
+        darkSince = 0;
+        return;
+    }
+    if (darkSince == 0) {
+        darkSince = now;
+    } else if (now - darkSince >= 30000) {
+        darkSince = 0;
+        brightSince = 0;
+        darkOffActive = true;
+        DisplayManager.setPower(false);
+    }
+}
 const unsigned long interval_BatTempHum = 10000;
 const unsigned long interval_LDR = 100;
 int total = 0;
@@ -178,6 +220,7 @@ void PeripheryManager_::tick() {
         sampleAverage = sampleSum / (float)LDRReadings;
         LDR_RAW = sampleAverage;
         CURRENT_LUX = (roundf(photocell.getSmoothedLux() * 1000) / 1000);
+        updateDarkOff(CURRENT_LUX);
 
         if (!MATRIX_OFF && SettingsManager.settings.brightness_mode != BRIGHTNES_MODE::MANUAL &&
             !DisplayManager.isBrightnessOverlayActive()) {

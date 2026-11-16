@@ -516,6 +516,8 @@ function validateConfig(c, ctx) {
         need("supply_repeat_minutes", inOptions(c.supply_repeat_minutes, SUPPLY_REPEATS), "Please choose how often to repeat the reminder.")
     }
 
+    if (c.dark_off_enabled) need("dark_off_lux", isInt(c.dark_off_lux) && c.dark_off_lux >= 1 && c.dark_off_lux <= 20, "Enter a whole number of lux from 1 to 20.")
+
     // Web interface authentication
     if (c.web_auth_enable) need("web_auth_password", RX.webPassword.test(text(c.web_auth_password)), "Password is required and must be 8 to 64 characters long.")
     return e
@@ -552,6 +554,8 @@ function normalizeLoaded(c) {
     out.supply_sensor_enabled = !!out.supply_sensor_enabled
     out.supply_beep = !!out.supply_beep
     out.supply_friendly = out.supply_friendly ?? true
+    out.dark_off_enabled = !!out.dark_off_enabled
+    out.dark_off_lux ??= 1
     out.supply_catheter_days ??= 3
     out.supply_sensor_days ??= 7
     out.supply_warn_hours ??= 12
@@ -565,7 +569,7 @@ function normalizeLoaded(c) {
         if (typeof out[k] === "string" && /^-?\d+$/.test(out[k].trim())) out[k] = parseInt(out[k], 10)
     }
     ;[...LIMIT_KEYS, "brightness_level", "face_cycle_interval_seconds", "alarm_repeat_interval_seconds", "custom_nodatatimer",
-        "supply_catheter_days", "supply_sensor_days", "supply_warn_hours", "supply_repeat_minutes",
+        "supply_catheter_days", "supply_sensor_days", "supply_warn_hours", "supply_repeat_minutes", "dark_off_lux",
         ...ALARMS.flatMap(a => [`alarm_${a.t}_value`, `alarm_${a.t}_snooze_interval`])].forEach(num)
     if (!inOptions(out.face_cycle_interval_seconds, CYCLE_INTERVALS)) out.face_cycle_interval_seconds = 60
     if (!inOptions(out.alarm_repeat_interval_seconds, REPEATS)) out.alarm_repeat_interval_seconds = 300
