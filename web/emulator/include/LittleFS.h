@@ -82,6 +82,8 @@ public:
     }
     File open(const String& path, const char* mode = FILE_READ) { return open(path.c_str(), mode); }
     bool remove(const char* path) { return emuFiles().erase(path) > 0; }
+    size_t totalBytes() { return 1024 * 1024; }
+    size_t usedBytes() { return 0; }
     bool rename(const char* from, const char* to) {
         auto it = emuFiles().find(from);
         if (it == emuFiles().end())
