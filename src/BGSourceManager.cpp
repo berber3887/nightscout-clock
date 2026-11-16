@@ -38,12 +38,14 @@ void BGSourceManager_::setup(BG_SOURCE bgSourceType) {
             bgSource = new BGSourceMedtrum();
             break;
         default:
+            // No usable source in the settings: start the clock anyway, waiting for readings sent to its
+            // API, so that its web page stays reachable and the source can be chosen there. A fatal
+            // error here restarted the clock in a loop.
             DEBUG_PRINTLN(
                 "BGSourceManager_::setup: Unknown BG_SOURCE: " + toString(bgSourceType) + " (" +
-                String((int)bgSourceType) + ")");
-            DisplayManager.showFatalError(
-                "Unknown data source: " + toString(bgSourceType) + " (" + String((int)bgSourceType) +
-                ")");
+                String((int)bgSourceType) + "), waiting for a source to be chosen");
+            bgSource = new BGSourceApi();
+            break;
     }
     bgSource->setup();
     currentSourceType = bgSourceType;

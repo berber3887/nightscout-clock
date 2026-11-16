@@ -30,6 +30,15 @@ SettingsManager_& SettingsManager = SettingsManager.getInstance();
 
 void SettingsManager_::setup() { LittleFS.begin(); }
 
+namespace {
+// The data sources the firmware knows. A saved configuration without one of them starts the clock
+// with no source at all, so such a file must never replace a working one.
+bool isKnownDataSource(const String& source) {
+    return source == "nightscout" || source == "dexcom" || source == "medtronic" || source == "api" ||
+           source == "librelinkup" || source == "medtrum";
+}
+}  // namespace
+
 bool copyFile(const char* srcPath, const char* destPath) {
     File srcFile = LittleFS.open(srcPath, "r");
     if (!srcFile) {
@@ -554,17 +563,46 @@ bool SettingsManager_::saveSettingsToFile() {
 }
 
 bool SettingsManager_::trySaveJsonAsSettings(JsonDocument doc) {
-    DEBUG_PRINTLN(doc.as<String>());
-    auto file = LittleFS.open(CONFIG_JSON, FILE_WRITE);
-    if (!file) {
-        DEBUG_PRINTLN("Failed to open config file for writing");
+    const String text = doc.as<String>();
+    DEBUG_PRINTLN(text);
+
+    if (!isKnownDataSource(doc["data_source"].as<String>())) {
+        DEBUG_PRINTLN("Refusing to save a configuration without a known data source");
         return false;
     }
 
-    auto result = file.print(doc.as<String>());
+    // Write a temporary file first and check it: a failed or cut short write then leaves the working
+    // configuration untouched instead of a damaged one.
+    LittleFS.remove(CONFIG_JSON_TEMP);
+    File temp = LittleFS.open(CONFIG_JSON_TEMP, FILE_WRITE);
+    if (!temp) {
+        DEBUG_PRINTLN("Failed to open the temporary config file for writing");
+        return false;
+    }
+    const size_t written = temp.print(text);
+    temp.close();
+    if (written != text.length()) {
+        DEBUG_PRINTLN("Failed to write the whole configuration (file system full?)");
+        LittleFS.remove(CONFIG_JSON_TEMP);
+        return false;
+    }
 
-    file.close();
-    if (!result) {
+    File check = LittleFS.open(CONFIG_JSON_TEMP, "r");
+    JsonDocument verify;
+    bool readable = false;
+    if (check) {
+        readable = !deserializeJson(verify, check);
+        check.close();
+    }
+    if (!readable || !isKnownDataSource(verify["data_source"].as<String>())) {
+        DEBUG_PRINTLN("The configuration written is not readable, keeping the old one");
+        LittleFS.remove(CONFIG_JSON_TEMP);
+        return false;
+    }
+
+    LittleFS.remove(CONFIG_JSON);
+    if (!LittleFS.rename(CONFIG_JSON_TEMP, CONFIG_JSON)) {
+        DEBUG_PRINTLN("Failed to move the new configuration into place");
         return false;
     }
 

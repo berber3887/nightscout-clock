@@ -217,6 +217,11 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
 
 ## Changes
 
+### 1.4.8
+
+- Saving the settings is now safer: the new settings are written to a temporary file, checked, and only then replace the working ones. A save without a known data source is refused
+- A clock without a usable data source no longer restarts in a loop with a fatal error: it starts and keeps its web page reachable, so the source can be chosen there
+
 ### 1.4.7
 
 - "Turn off in the dark" now wakes the display at a lower light level than before, and the settings page shows the light the clock measures, to help choose the level
