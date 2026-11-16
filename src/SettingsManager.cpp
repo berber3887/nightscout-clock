@@ -298,6 +298,7 @@ bool SettingsManager_::loadSettingsFromFile() {
     settings.additional_wifi_password = (*doc)["additional_wifi_password"].as<String>();
 
     // Custom hostname
+settings.welcome_name = (*doc)["welcome_name"].as<String>();
     settings.custom_hostname_enable = (*doc)["custom_hostname_enable"].as<bool>();
     settings.custom_hostname = (*doc)["custom_hostname"].as<String>();
 
@@ -522,6 +523,7 @@ bool SettingsManager_::saveSettingsToFile() {
     (*doc)["additional_wifi_password"] = settings.additional_wifi_password;
 
     // Custom hostname
+(*doc)["welcome_name"] = settings.welcome_name;
     (*doc)["custom_hostname_enable"] = settings.custom_hostname_enable;
     (*doc)["custom_hostname"] = settings.custom_hostname;
 

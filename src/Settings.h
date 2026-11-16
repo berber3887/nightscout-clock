@@ -106,6 +106,8 @@ public:
     String additional_wifi_ssid;
     String additional_wifi_username;
     String additional_wifi_password;
+    // The name shown at startup; empty or "Nightscout clock" keep the default.
+    String welcome_name;
     bool custom_hostname_enable;
     String custom_hostname;
     bool custom_nodatatimer_enable;

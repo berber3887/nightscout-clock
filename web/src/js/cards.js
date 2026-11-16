@@ -1376,6 +1376,8 @@ function extraWifiCard() {
  */
 function hostnameCard() {
     return card("Custom hostname", null, el("div.stack",
+        field("welcome_name", "Welcome name", textInput("welcome_name", { maxlength: 24, placeholder: "Nightscout clock" }), "Scrolled across the display when the clock starts. Leave empty for \"Nightscout clock\"."),
+        el("hr.divider"),
         toggleRow("custom_hostname_enable", "Use a custom hostname", "The clock's name on your network, and the name of its setup WiFi network."),
         // Show the hostname input only while custom naming is enabled.
         reactive(["custom_hostname_enable"], () => form.get("custom_hostname_enable")

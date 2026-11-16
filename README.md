@@ -217,6 +217,10 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
 
 ## Changes
 
+### 1.4.10
+
+- New "Welcome name" setting (System tab): the name scrolled across the display at startup. Leave empty for "Nightscout clock"
+
 ### 1.4.9
 
 - The settings page is in French when the browser is (a button in the header switches between French and English), and browsers no longer machine-translate it

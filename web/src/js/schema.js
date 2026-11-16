@@ -516,6 +516,8 @@ function validateConfig(c, ctx) {
 
     if (c.dark_off_enabled) need("dark_off_lux", isInt(c.dark_off_lux) && c.dark_off_lux >= 1 && c.dark_off_lux <= 20, "Enter a whole number of lux from 1 to 20.")
 
+    if (c.welcome_name.length > 24) need("welcome_name", false, "The welcome name can be at most 24 characters.")
+
     // Web interface authentication
     if (c.web_auth_enable) need("web_auth_password", RX.webPassword.test(text(c.web_auth_password)), "Password is required and must be 8 to 64 characters long.")
     return e
@@ -552,6 +554,7 @@ function normalizeLoaded(c) {
     out.supply_sensor_enabled = !!out.supply_sensor_enabled
     out.supply_beep = !!out.supply_beep
     out.supply_friendly = out.supply_friendly ?? true
+    out.welcome_name = out.welcome_name == null ? "" : String(out.welcome_name)
     out.supply_nightscout_write = out.supply_nightscout_write ?? true
     out.dark_off_enabled = !!out.dark_off_enabled
     out.dark_off_lux ??= 1
