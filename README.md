@@ -9,7 +9,7 @@
 
 This is an active and developing project, new versions land every few weeks
 
-### Current version: 1.4.3
+### Current version: 1.4.13
 
 ![Build and Release](https://github.com/ktomy/nightscout-clock/actions/workflows/build_release.yml/badge.svg)
 
