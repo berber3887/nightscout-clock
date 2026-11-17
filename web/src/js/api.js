@@ -303,7 +303,6 @@ const api = (() => {
      * @returns {Promise<ApiReply<SuppliesStatus>>}
      */
     const supplies = () => request("GET", "/api/supplies")
-    const light = () => request("GET", "/api/light")
     /**
      * Confirm a supply as changed, now or at a given time. This takes effect at once, without saving settings.
      * @param {'catheter' | 'sensor'} item - Supply that was changed.
@@ -316,7 +315,6 @@ const api = (() => {
      * @returns {Promise<ApiReply<ActionStatus>>}
      */
     const syncSupplies = () => request("POST", "/api/supplies/sync", { body: {} })
-    const undoSupply = item => request("POST", "/api/supplies/undo", { body: { item } })
     /**
      * Fetch LibreLinkUp patient choices from the clock's active connection.
      * @returns {Promise<ApiReply<PatientEntry[]>>}
@@ -376,6 +374,6 @@ const api = (() => {
 
     return {
         on: events.on, startStatus, saveSettings,
-        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, light, changeSupply, syncSupplies, undoSupply, patients, scanWifi,
+        authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, supplies, changeSupply, syncSupplies, patients, scanWifi,
     }
 })()

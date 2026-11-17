@@ -39,66 +39,6 @@ int readIndex = 0;
 int sampleIndex = 0;
 unsigned long previousMillis_BatTempHum = 0;
 unsigned long previousMillis_LDR = 0;
-
-// Turns the display off when the room has been dark for a while and on again with the light.
-// Only in the automatic brightness modes; a glucose alarm always wakes the display.
-static unsigned long darkSince = 0;
-static unsigned long brightSince = 0;
-// After a button woke the display in the dark, it stays on for a while before the dark can switch it off again.
-static unsigned long darkWakeHoldUntil = 0;
-// The light when the display went off, to notice a rise even when the lux value stays tiny.
-static float luxAtOff = 0;
-static int rawAtOff = 0;
-// For the settings page: why the display is off and what the sensor reads.
-int DARK_RAW_NOW = 0;
-int DARK_RAW_AT_OFF = 0;
-
-static void updateDarkOff(float lux, int raw) {
-    DARK_RAW_NOW = raw;
-    const Settings& settings = SettingsManager.settings;
-    const unsigned long now = millis();
-    const bool automatic = settings.brightness_mode != BRIGHTNES_MODE::MANUAL;
-    const bool alarm = bgAlarmManager.isAlarmActive();
-
-    if (DISPLAY_OFF_BY_DARK && !MATRIX_OFF) {
-        DISPLAY_OFF_BY_DARK = false;  // a button switched the display on: leave it on for a while
-        darkWakeHoldUntil = now + 120000UL;
-        darkSince = 0;
-    }
-    if (DISPLAY_OFF_BY_DARK) {
-        // Awake when the light is a little above the switch-off level, or clearly above what it was
-        // when the display went off: a dim lamp can stay under a lux or two at the sensor.
-        const float wakeLux = settings.dark_off_lux + 0.5f;
-        const bool brighter = lux >= wakeLux || lux >= luxAtOff * 2.0f + 0.2f || raw >= rawAtOff + 6;
-        if (!brighter) {
-            brightSince = 0;
-        } else if (brightSince == 0) {
-            brightSince = now;
-        }
-        if (!settings.dark_off_enabled || !automatic || alarm || (brightSince != 0 && now - brightSince >= 1000)) {
-            DISPLAY_OFF_BY_DARK = false;
-            DisplayManager.setPower(true);
-        }
-        return;
-    }
-    if (!settings.dark_off_enabled || !automatic || MATRIX_OFF || alarm || lux > settings.dark_off_lux ||
-        (darkWakeHoldUntil != 0 && now < darkWakeHoldUntil)) {
-        darkSince = 0;
-        return;
-    }
-    if (darkSince == 0) {
-        darkSince = now;
-    } else if (now - darkSince >= 30000) {
-        darkSince = 0;
-        brightSince = 0;
-        darkWakeHoldUntil = 0;
-        luxAtOff = lux;
-        rawAtOff = raw;
-        DARK_RAW_AT_OFF = raw;
-        DISPLAY_OFF_BY_DARK = true;
-        DisplayManager.setPower(false);
-    }
-}
 const unsigned long interval_BatTempHum = 10000;
 const unsigned long interval_LDR = 100;
 int total = 0;
@@ -228,17 +168,16 @@ void PeripheryManager_::tick() {
     unsigned long currentMillis_LDR = millis();
     if (currentMillis_LDR - previousMillis_LDR >= interval_LDR) {
         previousMillis_LDR = currentMillis_LDR;
-        // Running sum: subtract the old sample and add the new one, so the tick does not add 1000
-        // integers every 100 ms.
-        const int sample = analogRead(LDR_PIN);
-        sampleSum -= TotalLDRReadings[sampleIndex];
-        TotalLDRReadings[sampleIndex] = sample;
-        sampleSum += sample;
+        TotalLDRReadings[sampleIndex] = analogRead(LDR_PIN);
+
         sampleIndex = (sampleIndex + 1) % LDRReadings;
+        sampleSum = 0.0;
+        for (int i = 0; i < LDRReadings; i++) {
+            sampleSum += TotalLDRReadings[i];
+        }
         sampleAverage = sampleSum / (float)LDRReadings;
         LDR_RAW = sampleAverage;
         CURRENT_LUX = (roundf(photocell.getSmoothedLux() * 1000) / 1000);
-        updateDarkOff(CURRENT_LUX, TotalLDRReadings[(sampleIndex + LDRReadings - 1) % LDRReadings]);
 
         if (!MATRIX_OFF && SettingsManager.settings.brightness_mode != BRIGHTNES_MODE::MANUAL &&
             !DisplayManager.isBrightnessOverlayActive()) {

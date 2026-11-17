@@ -106,8 +106,6 @@ public:
     String additional_wifi_ssid;
     String additional_wifi_username;
     String additional_wifi_password;
-    // The name shown at startup; empty or "Nightscout clock" keep the default.
-    String welcome_name;
     bool custom_hostname_enable;
     String custom_hostname;
     bool custom_nodatatimer_enable;
@@ -134,11 +132,6 @@ public:
     bool supply_beep = false;
     // Shows the reminders as gentle French sentences for a child instead of the short English text.
     bool supply_friendly = true;
-    // Writes a confirmed change to Nightscout as a "Site Change" or "Sensor Change" treatment.
-    bool supply_nightscout_write = true;
-    // In an automatic brightness mode, turns the display off when the room is dark and back on with the light.
-    bool dark_off_enabled = false;
-    int dark_off_lux = 1;  // switch off at or below this many lux
     bool web_auth_enable;
     String web_auth_password;
 };

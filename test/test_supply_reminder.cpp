@@ -108,46 +108,6 @@ static void friendlyMessagesUseAccentsAndVary() {
     assert(strcmp(text, other) == 0);
 }
 
-static void timestampsRoundTripAndHistoryMerges() {
-    char stamp[32];
-    formatNightscoutTimestamp(stamp, sizeof(stamp), 1794744000);
-    assert(parseNightscoutTimestamp(stamp) == 1794744000);
-    formatNightscoutTimestamp(stamp, sizeof(stamp), 1583020800 + 86400 + 3661);  // leap day 2020 + 1 day
-    assert(strcmp(stamp, "2020-03-02T01:01:01.000Z") == 0);
-    for (uint32_t e = 1700000000; e < 1900000000; e += 7777777) {
-        formatNightscoutTimestamp(stamp, sizeof(stamp), e);
-        assert(parseNightscoutTimestamp(stamp) == e);
-    }
-
-    const uint32_t starts[] = {9000000, 5000000, 1000000};
-    const uint32_t changes[] = {8999000, 7000000, 3000000};
-    uint32_t merged[4];
-    const int kept = mergeSupplyHistory(starts, 3, changes, 3, merged, 4);
-    // 8999000 is within an hour of 9000000 and is dropped.
-    assert(kept == 4);
-    assert(merged[0] == 9000000 && merged[1] == 7000000 && merged[2] == 5000000 && merged[3] == 3000000);
-    uint32_t few[5];
-    assert(mergeSupplyHistory(starts, 1, changes, 0, few, 5) == 1);
-    assert(few[0] == 9000000 && few[1] == 0 && few[4] == 0);
-}
-
-static void correctionIgnoresMistakenNotes() {
-    // Real change on day 100, tests on day 200 (notes at 200, 201, 202), correction made at 210.
-    uint32_t list[5] = {202, 201, 200, 100, 50};
-    int kept = dropIgnoredSupplyChanges(list, 5, 100, 210);
-    assert(kept == 2 && list[0] == 100 && list[1] == 50 && list[2] == 0);
-    // A change after the correction still counts.
-    uint32_t later[5] = {300, 202, 100, 0, 0};
-    kept = dropIgnoredSupplyChanges(later, 3, 100, 210);
-    assert(kept == 2 && later[0] == 300 && later[1] == 100);
-    // Nothing to ignore without a correction.
-    uint32_t plain[3] = {9, 8, 7};
-    assert(dropIgnoredSupplyChanges(plain, 3, 5, 0) == 3);
-    // A newer local confirmation: the window is empty.
-    uint32_t newer[3] = {250, 202, 100};
-    assert(dropIgnoredSupplyChanges(newer, 3, 250, 210) == 3);
-}
-
 static void accentsBecomeLatin1Capitals() {
     char text[] = "é è ê à ô ç î ï û ù É ! a";
     utf8ToLatin1Capitals(text);
@@ -209,8 +169,6 @@ int main() {
     messagesNameTheSupply();
     friendlyMessagesUseAccentsAndVary();
     accentsBecomeLatin1Capitals();
-    correctionIgnoresMistakenNotes();
-    timestampsRoundTripAndHistoryMerges();
     roundsStartWhenDueAndRepeat();
     nightscoutTimestampsAreParsed();
     badTimestampsGiveZero();

@@ -33,10 +33,6 @@ public:
     // know the time yet or the time asked for is not sensible.
     bool requestChange(SupplyItem item, uint32_t epoch);
     void requestSync() { syncRequested = true; }
-    // Takes back the last confirmation of a supply: the previous date comes back, and the note the clock
-    // sent to Nightscout for it is removed. Safe to call from the web server task. Returns false when
-    // there is nothing to take back.
-    bool requestUndo(SupplyItem item);
     // JSON for the web page, safe to call from the web server task.
     String statusJson();
 
@@ -45,14 +41,6 @@ private:
         for (int i = 0; i < 2; i++) {
             localStart[i] = 0;
             nightscoutStart[i] = 0;
-            ignoreUntil[i] = 0;
-            undoLocal[i] = 0;
-            undoNightscout[i] = 0;
-            undoEpoch[i] = 0;
-            undoRequested[i] = false;
-            for (int k = 0; k < HISTORY_SIZE; k++) {
-                history[i][k] = 0;
-            }
         }
     }
 
@@ -61,23 +49,6 @@ private:
     // Epochs are 32 bits so that the web server task reads them in one piece.
     std::atomic<uint32_t> localStart[2];
     std::atomic<uint32_t> nightscoutStart[2];
-    // Notes in Nightscout dated after the local date and up to this time are ignored (see dropIgnoredSupplyChanges).
-    std::atomic<uint32_t> ignoreUntil[2];
-    // What the last confirmation replaced, so that it can be taken back; 0 = nothing to take back.
-    std::atomic<uint32_t> undoLocal[2];
-    std::atomic<uint32_t> undoNightscout[2];
-    std::atomic<uint32_t> undoEpoch[2];
-    std::atomic<bool> undoRequested[2];
-    // Nightscout's id of the note the clock sent for the current local date, to remove it on undo.
-    String postedId[2];
-    uint32_t postedEpoch[2] = {0, 0};
-    // The last changes of each supply, newest first, as Nightscout lists them (0 = unused).
-    static constexpr int HISTORY_SIZE = 5;
-    std::atomic<uint32_t> history[2][HISTORY_SIZE];
-    // 0 nothing sent yet, 1 the last write worked, 2 it failed, 3 not allowed by the settings.
-    std::atomic<uint8_t> writeResult{0};
-    int writeFailures[2] = {0, 0};
-    unsigned long nextWriteMillis[2] = {0, 0};
     std::atomic<bool> persistRequested{false};
     std::atomic<bool> syncRequested{false};
     // 0 never tried, 1 ok, 2 failed, 3 syncing, 4 the data source is not Nightscout.
@@ -86,7 +57,6 @@ private:
 
     bool firstSyncDone = false;
     unsigned long lastSyncMillis = 0;
-    unsigned long lastTickMillis = 0;
 
     bool overlayActive = false;
     OverlayMode overlayMode = OverlayMode::SCROLLING;
@@ -120,18 +90,7 @@ private:
     void persist();
     bool shouldSync() const;
     void syncFromNightscout();
-    struct TreatmentRef {
-        uint32_t epoch = 0;
-        String id;
-        bool fromClock = false;  // entered by this firmware
-    };
-    bool fetchTreatments(const char* eventType, TreatmentRef* out, int max, int& count);
-    bool postTreatment(SupplyItem item, uint32_t epoch, String& idOut);
-    bool deleteTreatment(const String& id);
-    bool nightscoutRequest(const char* method, const String& url, const String& body, int& code, String* reply);
-    void rememberUndo(SupplyItem item, uint32_t newEpoch);
-    void applyUndo(SupplyItem item);
-    void writePendingChanges(uint32_t now);
+    bool fetchLatestTreatment(const char* eventType, uint32_t& epochOut);
 
     bool canShowOverlay() const;
     void startOverlay(SupplyItem item, uint32_t now);

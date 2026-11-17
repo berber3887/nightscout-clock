@@ -600,24 +600,6 @@ function surpriseModeCard() {
 }
 
 /**
- * Show the light the clock measures right now, refreshed every few seconds while the page shows it.
- * @returns {HTMLElement}
- */
-function lightReading() {
-    const out = el("p.help", "Reading the light from the clock…")
-    const refresh = async () => {
-        if (!out.isConnected) return clearInterval(timer)
-        const r = await api.light().catch(() => null)
-        if (r && r.ok && r.data && typeof r.data.lux === "number") {
-            out.textContent = `Light measured by the clock now: ${r.data.lux} lux${r.data.display_off ? " (display off)" : ""}. It switches off at or below the level above and comes back a little higher.` + ` [${r.data.raw}${r.data.off_by_dark ? ` / ${r.data.raw_at_off}` : ""}]`
-        }
-    }
-    const timer = setInterval(refresh, 3000)
-    setTimeout(refresh, 300)
-    return out
-}
-
-/**
  * Build automatic brightness choices and a manual slider, remembering the last manual level within the card.
  * @returns {HTMLElement}
  */
@@ -632,13 +614,7 @@ function brightnessCard() {
                 type: "button", "aria-pressed": String(mode === m), dataset: { value: m },
                 onclick: () => form.set("brightness_level", value == null ? lastManual : value),
             }, text)))
-        if (mode !== "manual") return el("div.stack", field("brightness_level", null, seg, "Follows the clock's light sensor. Try the room light slider in the preview."),
-            toggleRow("dark_off_enabled", "Turn off in the dark", "Switches the display off when the room is dark and back on by itself with the light. A glucose alarm always lights it up."),
-            reactive(["dark_off_enabled"], () => form.get("dark_off_enabled")
-                ? el("div.stack",
-                    el("div.grid", field("dark_off_lux", "Dark below", el("div.unit", numberInput("dark_off_lux"), el("span", "lux")), "1 is a dark bedroom. Raise it if the clock stays lit when the room is dark.")),
-                    lightReading())
-                : el("span", { hidden: true })))
+        if (mode !== "manual") return el("div.stack", field("brightness_level", null, seg, "Follows the clock's light sensor. Try the room light slider in the preview."))
         const range = el("input", { type: "range", min: 1, max: 10, step: 1, id: "f_brightness_manual", "aria-label": "Manual brightness" })
         range.value = String(level)
         const out = el("output", String(level))
@@ -1126,40 +1102,26 @@ function suppliesCard() {
     const supplyBlock = s => {
         const key = k => `supply_${s.t}_${k}`
         const status = el("p.help", "Reading the dates from the clock…")
-        const past = el("p.help")
         const when = el("input", { type: "datetime-local", "aria-label": `${s.name} changed on` })
         const stamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
         when.value = stamp.toISOString().slice(0, 16)
-        // Each confirmation replaces the last change date, so it asks first: a stray tap used to restart the count.
-        const now = el("button.btn.sm", { type: "button", onclick: () => {
-            if (!confirm(t(`Record that the ${s.name.toLowerCase()} was changed just now?`))) return
-            act(() => api.changeSupply(s.t), `${s.name} change recorded.`)
-        } }, icon("check"), "Changed now")
+        const now = el("button.btn.sm", { type: "button", onclick: () => act(() => api.changeSupply(s.t), `${s.name} change recorded.`) }, icon("check"), "Changed now")
         const set = el("button.btn.sm", { type: "button", onclick: () => {
             const at = Math.floor(new Date(when.value).getTime() / 1000)
             if (!when.value || !Number.isFinite(at)) return toast("Choose the date and time of the change first.", "warn")
-            if (!confirm(t(`Record that the ${s.name.toLowerCase()} was changed on ${fmtDate(at)}?`))) return
-            act(() => api.changeSupply(s.t, at), `${s.name} change recorded at the time chosen.`)
+            act(() => api.changeSupply(s.t, at), `${s.name} change recorded.`)
         } }, "Set this time")
-        const undo = el("button.btn.sm", { type: "button", hidden: true, onclick: () => {
-            if (!confirm(t(`Take back the last ${s.name.toLowerCase()} confirmation? The previous date comes back, and the note the clock sent to Nightscout is removed.`))) return
-            act(() => api.undoSupply(s.t), "Last confirmation taken back.").then(() => setTimeout(load, 4000))
-        } }, "Undo last confirmation")
         const fs = el("fieldset",
             el("div.stack",
                 field(key("days"), `Change the ${s.name.toLowerCase()} every`, el("div.unit", numberInput(key("days")), el("span", "days"))),
                 status,
-                past,
-                el("div.row", now, when, set, undo)))
+                el("div.row", now, when, set)))
         /**
          * Say when the supply was last changed and when the next change is due, using the lifetime being edited.
          * @returns {void}
          */
         const paint = () => {
             const i = info && info[s.t]
-            const list = i && Array.isArray(i.history) ? i.history : []
-            undo.hidden = !(i && i.undo)
-            past.textContent = list.length ? `Last changes: ${list.map(fmtDate).join(" · ")}` : ""
             if (!i) { status.textContent = problem || "Reading the dates from the clock…"; return }
             if (!i.start) {
                 status.textContent = info.nightscout
@@ -1169,13 +1131,12 @@ function suppliesCard() {
             }
             const days = Number(form.get(key("days")))
             const source = i.nightscout >= i.local ? "from Nightscout" : "confirmed on the clock or here"
-            // One text node per sentence, so that each can be translated on its own.
-            const parts = [`Last change: ${fmtDate(i.start)} (${source}).`]
+            let text = `Last change: ${fmtDate(i.start)} (${source}).`
             if (Number.isInteger(days) && days >= 1) {
                 const left = i.start + days * 86400 - info.now
-                parts.push(left > 0 ? ` Next change due ${fmtDate(i.start + days * 86400)}, in ${fmtSpan(left)}.` : ` Overdue by ${fmtSpan(left)}.`)
+                text += left > 0 ? ` Next change due ${fmtDate(i.start + days * 86400)}, in ${fmtSpan(left)}.` : ` Overdue by ${fmtSpan(left)}.`
             }
-            status.replaceChildren(...parts.map(p => document.createTextNode(p)))
+            status.textContent = text
         }
         repaints.push(paint)
         paint()
@@ -1214,7 +1175,6 @@ function suppliesCard() {
             field("supply_warn_hours", "Start warning", el("div.unit", numberInput("supply_warn_hours"), el("span", "hours before")), "How long before the change is due the message starts."),
             field("supply_repeat_minutes", "Repeat every", segmented("supply_repeat_minutes", SUPPLY_REPEATS, { numeric: true, label: "Reminder repeat" }), "How often the message comes back until you confirm.")),
         toggleRow("supply_friendly", "Gentle messages for a child", "Shows the reminder as a friendly French sentence, for example \"Coucou ! Bientôt, on change le cathéter\" (ten different sentences, picked at random), instead of the short English text."),
-        toggleRow("supply_nightscout_write", "Write the change in Nightscout", "When you confirm a change on the clock or here, it is also logged in Nightscout as a \"Site Change\" or \"Sensor Change\" at that time. The history above comes back from Nightscout after a restart. Needs the API secret to allow writing."),
         toggleRow("supply_beep", "Beep with the reminder", "Plays a short double beep each time the message appears."),
         el("div.row.spread", nightscout, read))
     load()
@@ -1376,8 +1336,6 @@ function extraWifiCard() {
  */
 function hostnameCard() {
     return card("Custom hostname", null, el("div.stack",
-        field("welcome_name", "Welcome name", textInput("welcome_name", { maxlength: 24, placeholder: "Nightscout clock" }), "Scrolled across the display when the clock starts. Leave empty for \"Nightscout clock\"."),
-        el("hr.divider"),
         toggleRow("custom_hostname_enable", "Use a custom hostname", "The clock's name on your network, and the name of its setup WiFi network."),
         // Show the hostname input only while custom naming is enabled.
         reactive(["custom_hostname_enable"], () => form.get("custom_hostname_enable")
