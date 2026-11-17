@@ -86,6 +86,7 @@ private:
 
     bool firstSyncDone = false;
     unsigned long lastSyncMillis = 0;
+    unsigned long lastTickMillis = 0;
 
     bool overlayActive = false;
     OverlayMode overlayMode = OverlayMode::SCROLLING;

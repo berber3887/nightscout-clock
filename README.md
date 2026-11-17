@@ -217,6 +217,10 @@ High, low, and urgent-low alarms each have their own threshold, snooze duration,
 
 ## Changes
 
+### 1.4.11
+
+- Fluidity: the catheter and sensor manager runs at most once a second instead of every main-loop tick, the Nightscout write timeouts are shorter (3 s instead of 13 s), and the light sensor keeps a running sum instead of adding 1000 samples every 100 ms
+
 ### 1.4.10
 
 - New "Welcome name" setting (System tab): the name scrolled across the display at startup. Leave empty for "Nightscout clock"

@@ -288,8 +288,9 @@ bool SupplyReminderManager_::nightscoutRequest(
     if (!began) {
         return false;
     }
-    http.setTimeout(8000);
-    http.setConnectTimeout(5000);
+    // Keep the main loop responsive: a Nightscout that drops the connection must not freeze the clock.
+    http.setTimeout(3000);
+    http.setConnectTimeout(2000);
     http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     http.addHeader("Accept", "application/json");
     if (body.length() > 0) {
@@ -683,6 +684,15 @@ void SupplyReminderManager_::tick() {
     if (persistRequested.exchange(false)) {
         persist();
     }
+
+    // Once a second is enough for all of this: Nightscout, the overlay scroll, undo requests. The
+    // whole block skips the rest of the time so the main loop stays free for the display.
+    const unsigned long nowMs = millis();
+    if (lastTickMillis != 0 && nowMs - lastTickMillis < 1000) {
+        updateOverlay(ServerManager.getUtcEpoch());
+        return;
+    }
+    lastTickMillis = nowMs;
 
     const uint32_t now = ServerManager.getUtcEpoch();
     if (now < SUPPLY_MIN_VALID_EPOCH) {

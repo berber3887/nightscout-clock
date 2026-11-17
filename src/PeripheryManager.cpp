@@ -228,13 +228,13 @@ void PeripheryManager_::tick() {
     unsigned long currentMillis_LDR = millis();
     if (currentMillis_LDR - previousMillis_LDR >= interval_LDR) {
         previousMillis_LDR = currentMillis_LDR;
-        TotalLDRReadings[sampleIndex] = analogRead(LDR_PIN);
-
+        // Running sum: subtract the old sample and add the new one, so the tick does not add 1000
+        // integers every 100 ms.
+        const int sample = analogRead(LDR_PIN);
+        sampleSum -= TotalLDRReadings[sampleIndex];
+        TotalLDRReadings[sampleIndex] = sample;
+        sampleSum += sample;
         sampleIndex = (sampleIndex + 1) % LDRReadings;
-        sampleSum = 0.0;
-        for (int i = 0; i < LDRReadings; i++) {
-            sampleSum += TotalLDRReadings[i];
-        }
         sampleAverage = sampleSum / (float)LDRReadings;
         LDR_RAW = sampleAverage;
         CURRENT_LUX = (roundf(photocell.getSmoothedLux() * 1000) / 1000);
